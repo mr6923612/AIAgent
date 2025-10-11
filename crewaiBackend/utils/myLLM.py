@@ -1,17 +1,22 @@
-from langchain_openai import ChatOpenAI
+import os
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-# OpenRouter API 配置
-OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"  
-OPENROUTER_CHAT_API_KEY = "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"  
-OPENROUTER_CHAT_MODEL = "alibaba/tongyi-deepresearch-30b-a3b:free"  
+
+GOOGLE_CHAT_MODEL = "gemini-2.5-flash"
+GOOGLE_CHAT_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyBMHuVj_rxv2f-VfYl6c_tDO8FghDFMBEs")
 
 # 模型初始化函数
 def my_llm(llmType):
-    # 使用OpenRouter API
-    llm = ChatOpenAI(
-        base_url=OPENROUTER_API_BASE,
-        api_key=OPENROUTER_CHAT_API_KEY,
-        model=OPENROUTER_CHAT_MODEL,
+    """初始化LLM模型，使用Google Chat API"""
+    print(f"正在初始化Google Chat模型: {GOOGLE_CHAT_MODEL}")
+    print(f"Google API密钥: {GOOGLE_CHAT_API_KEY[:20]}...")
+    
+    # 使用Google Chat API
+    llm = ChatGoogleGenerativeAI(
+        model=GOOGLE_CHAT_MODEL,
+        google_api_key=GOOGLE_CHAT_API_KEY,
         temperature=0.7,
+        max_output_tokens=4000,
+        timeout=60,
     )
     return llm

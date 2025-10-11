@@ -1,21 +1,92 @@
 # -*- coding: utf-8 -*-
 # 客服机器人CrewAI配置
-# 支持多模态输入、RAG检索和产品推荐
+# 使用CrewAI内置的RagTool替换自定义RAG实现
 
 from crewai import Agent, Crew, Process, Task
 from utils.jobManager import append_event
-from utils.rag_retriever import rag_retriever
+from crewai_tools import RagTool
 import json
+import os
+import re
+from datetime import datetime
 
-class CustomerServiceCrew:
-    """客服机器人CrewAI类"""
+class CrewtestprojectCrew:
+    """客服机器人CrewAI类 - 使用CrewAI内置RagTool"""
     
     def __init__(self, job_id, llm):
         self.job_id = job_id
         self.llm = llm
-        # 初始化RAG检索器
-        self.rag_retriever = rag_retriever
+        # 初始化CrewAI的RAG工具
+        self.rag_tool = self._initialize_crewai_rag_tool()
 
+    def _initialize_crewai_rag_tool(self):
+        """初始化CrewAI的RAG工具并添加数据源"""
+        # 配置RAG工具参数
+        config = {
+            "chunker": {
+                "chunk_size": 400,
+                "chunk_overlap": 100,
+                "length_function": "len",
+                "min_chunk_size": 0
+            }
+        }
+        
+        rag_tool_instance = RagTool(config=config, summarize=True)
+        
+        # 添加知识库文档
+        knowledge_base_path = "rag_documents/taobao_customer_service.md"
+        if os.path.exists(knowledge_base_path):
+            rag_tool_instance.add(data_type="file", path=knowledge_base_path)
+            append_event(self.job_id, f"RAG工具已加载知识库: {knowledge_base_path}")
+        else:
+            append_event(self.job_id, f"警告: 知识库文件不存在: {knowledge_base_path}")
+
+        # 添加产品内容 (将JSON转换为文本格式)
+        products_content_path = "rag_documents/products_content.json"
+        if os.path.exists(products_content_path):
+            # 读取JSON并转换为文本格式
+            try:
+                with open(products_content_path, 'r', encoding='utf-8') as f:
+                    products_data = json.load(f)
+                
+                # 将产品信息转换为文本格式
+                products_text = self._convert_products_to_text(products_data)
+                
+                # 创建临时文本文件
+                temp_products_path = "rag_documents/products_content.txt"
+                with open(temp_products_path, 'w', encoding='utf-8') as f:
+                    f.write(products_text)
+                
+                rag_tool_instance.add(data_type="file", path=temp_products_path)
+                append_event(self.job_id, f"RAG工具已加载产品内容: {temp_products_path}")
+            except Exception as e:
+                append_event(self.job_id, f"加载产品内容失败: {str(e)}")
+        else:
+            append_event(self.job_id, f"警告: 产品内容文件不存在: {products_content_path}")
+
+        # 注意：CrewAI RagTool主要处理文本内容，图片检索功能有限
+        append_event(self.job_id, "注意: CrewAI RagTool主要用于文本检索，图片检索功能可能需要额外定制。")
+
+        return rag_tool_instance
+
+    def _convert_products_to_text(self, products_data):
+        """将产品JSON数据转换为文本格式"""
+        text_content = "产品信息库:\n\n"
+        
+        for i, product in enumerate(products_data, 1):
+            if "product_info" in product:
+                product_info = product["product_info"]
+                text_content += f"产品{i}:\n"
+                text_content += f"名称: {product_info.get('name', '未知')}\n"
+                text_content += f"描述: {product_info.get('description', '无描述')}\n"
+                
+                # 添加图片信息（如果有）
+                if "images" in product and product["images"]:
+                    text_content += f"图片: {', '.join([img.get('filename', '') for img in product['images']])}\n"
+                
+                text_content += "\n"
+        
+        return text_content
 
     def append_event_callback(self, task_output):
         """任务完成回调函数"""
@@ -23,63 +94,33 @@ class CustomerServiceCrew:
         append_event(self.job_id, task_output.raw)
     
     def _create_rag_search_tool(self):
-        """创建RAG搜索工具"""
+        """创建RAG搜索工具 (使用CrewAI RagTool)"""
         def rag_search_function(query: str, route_decision: str = "PRODUCT_QUERY") -> str:
-            """使用RAG检索器进行搜索"""
+            """使用CrewAI RagTool进行搜索"""
             try:
-                append_event(self.job_id, f"使用RAG检索器搜索: {query[:50]}...")
+                append_event(self.job_id, f"使用CrewAI RagTool搜索: {query[:50]}...")
                 
-                # 使用RAG检索器进行搜索
-                results = self.rag_retriever.search(query, route_decision=route_decision)
+                # 直接调用RagTool的run方法
+                results = self.rag_tool.run(query)
                 
                 if not results:
-                    append_event(self.job_id, "RAG检索器未找到相关信息")
+                    append_event(self.job_id, "CrewAI RagTool未找到相关信息")
                     return "未找到相关信息"
                 
-                # 格式化结果
-                formatted_results = []
-                for result in results[:3]:  # 取前3个结果
-                    if result.get("type") == "inquiry":
-                        formatted_results.append(f"询问: {result.get('content', '')}")
-                    else:
-                        formatted_results.append(f"相关信息: {result.get('content', '')}")
-                
-                append_event(self.job_id, f"RAG检索器搜索完成，找到{len(results)}条相关信息")
-                return "\n".join(formatted_results)
+                append_event(self.job_id, f"CrewAI RagTool搜索完成，找到相关信息")
+                return results  # RagTool通常返回格式化好的文本
                 
             except Exception as e:
-                append_event(self.job_id, f"RAG检索器搜索失败: {str(e)}")
+                append_event(self.job_id, f"CrewAI RagTool搜索失败: {str(e)}")
                 return f"搜索失败: {str(e)}"
         
         return rag_search_function
 
     def _perform_rag_search(self, query: str, image_data: str = None, route_decision: str = "PRODUCT_QUERY") -> str:
-        """使用RAG检索器执行搜索"""
-        try:
-            append_event(self.job_id, f"使用RAG检索器搜索: {query[:50]}...")
-            append_event(self.job_id, f"搜索参数 - 路由: {route_decision}, 图片: {'有' if image_data else '无'}")
-            
-            # 使用RAG检索器进行搜索
-            results = self.rag_retriever.search(query, route_decision=route_decision)
-            
-            if not results:
-                append_event(self.job_id, "RAG检索器未找到相关信息")
-                return "未找到相关信息"
-            
-            # 格式化结果
-            formatted_results = []
-            for result in results[:3]:  # 取前3个结果
-                if result.get("type") == "inquiry":
-                    formatted_results.append(f"询问: {result.get('content', '')}")
-                else:
-                    formatted_results.append(f"相关信息: {result.get('content', '')}")
-            
-            append_event(self.job_id, f"RAG检索器搜索完成，找到{len(results)}条相关信息")
-            return "\n".join(formatted_results)
-            
-        except Exception as e:
-            append_event(self.job_id, f"RAG检索器搜索失败: {str(e)}")
-            return f"搜索失败: {str(e)}"
+        """使用CrewAI RagTool执行搜索 (适配旧接口)"""
+        # 对于CrewAI RagTool，route_decision和image_data通常在工具内部处理或通过LLM的提示词引导
+        # 这里简化为直接调用RagTool
+        return self._create_rag_search_tool()(query)
 
     def create_agents(self):
         """创建客服机器人相关的Agent"""
@@ -97,7 +138,7 @@ class CustomerServiceCrew:
             llm=self.llm,
         )
 
-        # 2. 知识检索Agent
+        # 2. 知识检索Agent (使用CrewAI RagTool)
         knowledge_retriever = Agent(
             role="知识检索助手",
             goal="从知识库中快速检索相关信息",
@@ -108,6 +149,7 @@ class CustomerServiceCrew:
             - 提供准确的知识支持""",
             verbose=False,
             llm=self.llm,
+            tools=[self.rag_tool]  # 直接使用CrewAI的RagTool
         )
 
         # 3. 拟人客服Agent
@@ -130,11 +172,9 @@ class CustomerServiceCrew:
             "customer_service_agent": customer_service_agent
         }
 
-    def create_tasks(self, agents, inputs, route_decision="PRODUCT_QUERY"):
-        """创建客服机器人的任务流程"""
-        
-        # 任务1：输入理解
-        input_analysis_task = Task(
+    def create_input_analysis_task(self, agents, inputs):
+        """创建输入分析任务"""
+        return Task(
             description=f"""
             理解客户输入：
             
@@ -155,6 +195,11 @@ class CustomerServiceCrew:
             callback=self.append_event_callback,
         )
 
+    def create_tasks(self, agents, inputs, route_decision="PRODUCT_QUERY"):
+        """创建客服机器人的任务流程"""
+        
+        # 任务1：输入理解 (已在kickoff中单独执行)
+        
         # 任务2：知识检索
         knowledge_retrieval_task = Task(
             description=f"""
@@ -186,7 +231,6 @@ class CustomerServiceCrew:
         )
 
         return [
-            input_analysis_task,
             knowledge_retrieval_task,
             customer_service_task
         ]
@@ -247,69 +291,23 @@ class CustomerServiceCrew:
             
             final_result = self.format_final_result(results, inputs)
             return final_result
-            
+                    
         except Exception as e:
-            append_event(self.job_id, f"客服机器人分析过程中出现错误: {str(e)}")
-            return f"分析失败: {str(e)}"
+            append_event(self.job_id, f"启动客服机器人分析流程失败: {str(e)}")
+            return f"启动客服机器人分析流程失败: {str(e)}"
 
-    def create_input_analysis_task(self, agents, inputs):
-        """创建输入分析任务"""
-        return Task(
-            description=f"""
-            输入分析和路由判断：
-            
-            客户输入：{inputs.get('customer_input', '')}
-            输入类型：{inputs.get('input_type', 'text')}
-            
-            {'图片数据：已上传图片文件' if inputs.get('image_data') else ''}
-            
-            请执行路由判断：
-            根据客户的问题内容，判断属于以下哪一类：
-            
-            A. 通用客服问题 - 包含以下关键词的问题：
-               - 退换货、退款、退货、换货
-               - 物流、发货、快递、配送
-               - 支付、付款、订单、会员
-               - 优惠、活动、促销、客服
-               - 投诉、建议、反馈
-            
-            B. 产品相关问题 - 其他所有问题：
-               - 产品功效、使用方法、成分
-               - 适用人群、产品对比、效果
-               - 产品咨询、购买建议
-            
-            输出格式（严格按照以下格式）：
-            ROUTE: [GENERAL_SERVICE 或 PRODUCT_QUERY]
-            问题分类：[具体的问题类型]
-            关键信息：[提取的关键信息]
-            """,
-            expected_output="路由决策，包含ROUTE标记、问题分类和关键信息",
-            agent=agents["input_analyzer"],
-            callback=self.append_event_callback,
-        )
-
-    def _extract_route_decision(self, analysis_result: str) -> str:
-        """从分析结果中提取路由决策"""
-        try:
-            if "ROUTE: GENERAL_SERVICE" in analysis_result:
-                return "GENERAL_SERVICE"
-            elif "ROUTE: PRODUCT_QUERY" in analysis_result:
-                return "PRODUCT_QUERY"
-            else:
-                # 默认按产品问题处理
-                return "PRODUCT_QUERY"
-        except Exception as e:
-            print(f"提取路由决策失败: {str(e)}")
-            return "PRODUCT_QUERY"
-
+    def _extract_route_decision(self, input_result: str) -> str:
+        """从输入分析结果中提取路由决策"""
+        match = re.search(r"ROUTE:\s*(GENERAL_SERVICE|PRODUCT_QUERY)", input_result)
+        if match:
+            return match.group(1)
+        return "PRODUCT_QUERY"  # 默认路由
 
     def format_final_result(self, results, inputs):
         """格式化最终结果"""
-        return f"""
-{results}
-        """
-
-# 为了保持与原始代码的兼容性，创建CrewtestprojectCrew类
-class CrewtestprojectCrew(CustomerServiceCrew):
-    """保持与原始代码兼容的类名"""
-    pass
+        # 假设results已经是最终回复文本
+        return {
+            "customer_input": inputs.get('customer_input', ''),
+            "response": results,
+            "timestamp": datetime.now().isoformat()
+        }

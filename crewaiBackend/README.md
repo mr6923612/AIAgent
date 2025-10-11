@@ -1,182 +1,236 @@
-# 1、项目介绍
-本期视频主要实现使用Flask后端框架实现后端服务并使用ApiFox进行前后端联调            
-业务流程图如下所示:        
-<img src="./img.png" alt="业务流程图" width="900" />                     
+# CrewAI Backend - 智能客服机器人后端
 
-# 2、前期准备工作 
-## 2.1 CrewAI介绍
-### (1)简介
-CrewAI是一个用于构建多Agent系统的工具，它能够让多个具有不同角色和目标的Agent共同协作，完成复杂的Task                
-该工具可以将Task分解，分配给不同的Agent，借助它们的特定技能和工具，完成各自的职责，最终实现整体任务目标              
-官网:https://www.crewai.com/                                          
-GitHub:https://github.com/crewAIInc/crewAI                                          
-官方首页的介绍:                          
-AI Agents for real use cases                                           
-Most AI agent frameworks are hard to use.We provide power with simplicity.                                           
-Automate your most important workflows quickly.            
-### (2)核心概念
-**Agents:**          
-是一个自主可控单元，通过编程可以实现执行任务、作出决定、与其他Agent协作交流          
-可类比为团队中的一员，拥有特定的技能和任务                    
-属性:             
-role(角色):定义Agent在团队中的角色功能                              
-goal(目标):Agent实现的目标                             
-backstory(背景信息):为Agent提供上下文                                    
-**Tasks:**               
-分配给Agent的具体任务，提供执行任务所需的所有细节                          
-属性:                         
-description(任务描述):简明扼要说明任务要求                                                 
-agent(分配的Agent):分配负责该任务的Agent                                                
-expected_output(期望输出):任务完成情况的详细描述                                                         
-Tools(工具列表):为Agent提供可用于执行该任务的工具列表                   
-output_json(输出json):输出一个json对象，只能输出一种数据格式                    
-output_file(工具列表):将任务结果输出到一个文件中，指定输出的文件格式                                                     
-context(上下文):指定其输出被用作该任务上下文的任务                                  
-**Processes**                      
-CrewAI中负责协调Agent执行任务                        
-类似于团队中的项目经理                        
-确保任务分配和执行效率与预定计划保持一致                       
-目前拥有两种实施机制:                             
-sequential(顺序流程):反映了crew中动态的工作流程，以深思熟虑的和系统化的方式推进各项任务，按照任务列表中预定义的顺序执行，一个任务的输出作为下一个任务的上下文            
-hierarchical(分层流程):允许指定一个自定义的管理Agent，负责监督任务执行，包括计划、授权和验证。任务不是预先分配的，而是根据Agent的能力进行任务分配，审查产出并评估任务完成情况              
-**Crews:**          
-1个crew代表一组合作完成一系列任务的Agent                        
-每个crew定义了任务执行策略、Agent协作和整体工作流程                                          
-属性:                               
-Tasks(任务列表):分配给crew的任务列表                                                          
-Agents(Agent列表):分配给crew的Agent列表                                                         
-Process(背景信息):crew遵循的流程                              
-manager_llm(大模型):在hierarchical模式下指定大模型                                                                             
-language(语言):指定crew使用的语言                                                                                               
-language_file(语言文件):指定crew使用的语言文件                        
-**Pipleline:**          
-在CrewAI中,pipleline代表一种结构化的工作流程，允许多个crew顺序或并行执行           
-提供了一种组织涉及多个阶段的复杂流程的方法，其中一个阶段的输出可作为后续阶段的输入                                                        
-关键术语:                               
-Stage:pipleline中的1个独立部分，可以是1个顺序crews，也可以是一个并行的crews                                                                       
-Run:运行pipleling处理的单个实例                                                                    
-Branch:Stage内的并行执行                                                      
-Trace:单个输入在整个pipleline中的运行轨迹、捕捉它所经历的路径和转换            
+基于CrewAI的多模态智能客服机器人后端服务，支持文字、图片、音频输入和RAG知识库检索。
 
-## 2.2 anaconda、pycharm 安装   
-anaconda:提供python虚拟环境，官网下载对应系统版本的安装包安装即可                                      
-pycharm:提供集成开发环境，官网下载社区版本安装包安装即可                                               
-可参考如下视频进行安装，【大模型应用开发基础】集成开发环境搭建Anaconda+PyCharm                                                          
-https://www.bilibili.com/video/BV1q9HxeEEtT/?vd_source=30acb5331e4f5739ebbad50f7cc6b949                             
-https://youtu.be/myVgyitFzrA                                           
+## ✨ 核心功能
 
-## 2.3 GPT大模型使用方案            
-可以使用代理的方式，具体代理方案自己选择                                   
-可以参考视频《GraphRAG最新版本0.3.0对比实战评测-使用gpt-4o-mini和qwen-plus分别构建近2万字文本知识索引+本地/全局检索对比测试》中推荐的方式:                                    
-https://www.bilibili.com/video/BV1maHxeYEB1/?vd_source=30acb5331e4f5739ebbad50f7cc6b949                                    
-https://youtu.be/iXfsJrXCEwA                     
+- 🤖 **智能客服机器人**: 基于CrewAI的多Agent协作
+- 📝 **多模态输入**: 支持文字、图片、音频输入
+- 🎤 **语音转文字**: 支持音频文件上传和实时语音识别
+- 🔍 **RAG检索**: 智能知识库检索和问答
+- 📄 **Word文档处理**: 自动提取产品信息和图片
+- 💬 **客服问答库**: 内置常见客服问题智能回答
+- 🔄 **异步任务处理**: 支持长时间运行的任务
+- 🌐 **RESTful API**: 标准化的API接口
 
-## 2.4 非GPT大模型(国产大模型)使用方案,OneAPI安装、部署、创建渠道和令牌 
-### （1）OneAPI是什么
-官方介绍：是OpenAI接口的管理、分发系统             
-支持 Azure、Anthropic Claude、Google PaLM 2 & Gemini、智谱 ChatGLM、百度文心一言、讯飞星火认知、阿里通义千问、360 智脑以及腾讯混元             
-### (2)安装、部署、创建渠道和令牌   
-创建渠道：大模型类型(通义千问)、APIKey(通义千问申请的真实有效的APIKey)                 
-创建令牌：创建OneAPI的APIKey，后续代码中直接调用此APIKey                
-### (3)详细介绍可以观看这期视频 
-【GraphRAG+阿里通义千问大模型】构建+检索全流程实操，打造基于知识图谱的本地知识库，本地搜索、全局搜索二合一          
-https://www.bilibili.com/video/BV1yzHxeZEG5/?vd_source=30acb5331e4f5739ebbad50f7cc6b949            
-https://youtu.be/w9CRDbafhPI              
-     
-## 2.5 本地开源大模型使用方案,Ollama          
-### （1）Ollama是什么
-Ollama是一个轻量级、跨平台的工具和库，专门为本地大语言模型(LLM)的部署和运行提供支持          
-它旨在简化在本地环境中运行大模型的过程，不需要依赖云服务或外部API，使用户能够更好地掌控和使用大型模型                
-### （2）Ollama安装、启动、下载大模型
-安装Ollama，进入官网https://ollama.com下载对应系统版本直接安装即可                                      
-启动Ollama，安装所需要使用的本地模型，执行指令进行安装即可，参考如下:                                              
-ollama pull qwen2:latest                                                
-ollama pull llama3.1:latest                                             
-ollama pull gemma2:latest                                                
-### (3)详细介绍可以观看这期视频                                                 
-【GraphRAG+Ollama】本地开源大模型llama3.1与qwen2构建+检索全流程实操对比评测，打造基于知识图谱的本地知识库，本地搜索、全局搜索二合一               
-https://www.bilibili.com/video/BV1mpH9eVES1/?vd_source=30acb5331e4f5739ebbad50f7cc6b949                                                
-https://youtu.be/thNMan45lWA               
+## 🚀 快速开始
 
-## 2.6 Apifox          
-官网下载软件安装即可，进行接口调试                          
-https://apifox.com/                
+### 1. 环境准备
+```bash
+# 安装Python依赖
+pip install -r requirements.txt
 
+# 配置Google API密钥（可选）
+export GOOGLE_API_KEY="your_api_key"
+```
 
-# 3、项目初始化
-## 3.1 下载源码
-GitHub或Gitee中下载工程文件到本地，下载地址如下：                
-https://github.com/NanGePlus/CrewAIFullstackTest          
-https://gitee.com/NanGePlus/CrewAIFullstackTest                 
+### 2. 处理Word文档（可选）
+```bash
+# 处理RAG文档目录中的Word文档
+python scripts/process_word_docs.py
+```
 
-## 3.2 构建项目
-使用pycharm构建一个项目，为项目配置虚拟python环境               
-项目名称：CrewAIFullstackTest                                   
+### 3. 启动服务器
+```bash
+# 直接运行主服务器
+python main.py
+```
 
-## 3.3 将相关代码拷贝到项目工程中           
-直接将下载的文件夹中的文件拷贝到新建的项目目录中               
+### 4. 测试API
+```bash
+# 测试文字输入
+curl -X POST http://localhost:8012/api/crew \
+  -H "Content-Type: application/json" \
+  -d '{"customer_input": "你好，我想了解你们的产品"}'
 
-## 3.4 安装项目依赖          
-命令行终端中执行cd crewaiBackend 命令进入到该文件夹内，然后执行如下命令安装依赖包                                           
-pip install -r requirements.txt            
-每个软件包后面都指定了本次视频测试中固定的版本号           
+# 测试图片输入
+curl -X POST http://localhost:8012/api/crew \
+  -F "customer_input=这个产品怎么样？" \
+  -F "image=@your_image.jpg"
 
+# 测试语音转文字
+curl -X POST http://localhost:8012/api/speech-to-text \
+  -F "audio=@your_audio.wav" \
+  -F "language=zh-CN"
+```
 
-# 4、项目测试          
-### （1）运行main脚本启动API服务
-在使用python main.py命令启动脚本前，需根据自己的实际情况调整相关配置参数:         
-**openai模型相关配置 根据自己的实际情况进行调整**              
-OPENAI_API_BASE = "https://api.wlai.vip/v1"            
-OPENAI_CHAT_API_KEY = "sk-XmrIEFplNArLlYa0E8C5A7C5F82041FdBd923e9d115746D0"          
-OPENAI_CHAT_MODEL = "gpt-4o-mini"           
-**非gpt大模型相关配置(oneapi方案 通义千问为例) 根据自己的实际情况进行调整**              
-ONEAPI_API_BASE = "http://139.224.72.218:3000/v1"            
-ONEAPI_CHAT_API_KEY = "sk-0FxX9ncd0yXjTQF877Cc9dB6B2F44aD08d62805715821b85"               
-ONEAPI_CHAT_MODEL = "qwen-max"               
-**本地大模型相关配置(Ollama方案 llama3.1:latest为例) 根据自己的实际情况进行调整**             
-OLLAMA_API_BASE = "http://localhost:11434/v1"                
-OLLAMA_CHAT_API_KEY = "ollama"          
-OLLAMA_CHAT_MODEL = "llama3.1:latest"             
-**openai:调用gpt大模型;oneapi:调用非gpt大模型;ollama:调用本地大模型**              
-LLM_TYPE = "openai"           
-**API服务设置相关  根据自己的实际情况进行调整**              
-PORT = 8012  # 服务访问的端口                
+## 📋 API接口
 
-### （2）打开Apifox进行测试            
-在Apifox中新建项目，将提供的crewaiBackend文件夹下的api.json接口文件导入            
-然后，测试运行crew POST请求                
-http://127.0.0.1:8012/api/crew                  
-获取某次运行crew作业详情 GET请求                    
-http://127.0.0.1:8012/api/crew/{jobId}        
-请求体内容:              
-{                 
-    "customer_domain": "https://www.emqx.com/zh",                          
-    "project_description": "EMQX是一种开源的分布式消息中间件，专注于处理物联网 (IoT) 场景下的大规模消息通信。它基于MQTT协议，能够实现高并发、低延迟的实时消息推送，支持设备之间、设备与服务器之间的双向通信。客户领域:分布式消息中间件解决方案,项目概述:创建一个全面的营销活动，以提高企业客户对 EMQX 服务的认识和采用。"                 
-}       
+### POST /api/crew
+运行客服机器人
 
-### （3）使用Vue.js实现一个简单的前端页面与后端进行数据交互                   
-(1)准备工作       
-官网下载安装node.js、下载安装VSCode编辑器，官网链接如下:             
-https://nodejs.org/zh-cn         
-https://code.visualstudio.com/         
-(2)创建一个文件夹vuetest,在VSCode中打开该文件夹，打开终端执行如下命令创建项目         
-npm create vue@latest         
-在选择项中，指定项目名称，自定义即可，这里设置为vue-crewai，其他选项根据自己选择进行设置，一般默认选项即可            
-(3)初始化并运行项目        
-npm install                           
-npm run dev             
-(4)引入UI框架      
-链接地址:https://element-plus.org/zh-CN/guide/installation.html            
-npm install element-plus     
-在代码中按需导入，先执行如下命令安装相关依赖                    
-npm install -D unplugin-vue-components unplugin-auto-import       
-最后在vite.config.js中新增内容后重启服务即可            
-(5)编写页面代码        
-在初始项目基础上进行改写，页面布局交互、前后端数据交互(使用axios调用后端接口)         
-https://www.axios-http.cn/         
-安装axios     npm install axios          
-新增一个组件crewaiTest.vue,代码见crewaiTest.vue文件          
-(6)启动后端服务，前端页面进行测试             
-测试数据如下:              
-https://www.emqx.com/zh                   
-EMQX是一种开源的分布式消息中间件，专注于处理物联网 (IoT) 场景下的大规模消息通信。它基于MQTT协议，能够实现高并发、低延迟的实时消息推送，支持设备之间、设备与服务器之间的双向通信。客户领域:分布式消息中间件解决方案,项目概述:创建一个全面的营销活动，以提高企业客户对 EMQX 服务的认识和采用。                  
+**请求体 (JSON):**
+```json
+{
+  "customer_input": "用户输入内容",
+  "input_type": "text|image|voice",
+  "additional_context": "额外上下文信息",
+  "customer_domain": "客户所属领域",
+  "project_description": "项目描述"
+}
+```
+
+**请求体 (Form Data - 支持文件上传):**
+```
+customer_input: 用户输入内容
+input_type: text|image|voice
+image: 图片文件 (可选)
+audio: 音频文件 (可选)
+additional_context: 额外上下文
+customer_domain: 客户领域
+project_description: 项目描述
+```
+
+### POST /api/speech-to-text
+语音转文字API
+
+**请求体 (Form Data):**
+```
+audio: 音频文件 (必需)
+language: 语言代码 (可选，默认zh-CN)
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "text": "识别出的文字内容",
+  "language": "zh-CN"
+}
+```
+
+### GET /api/crew/<job_id>
+获取任务执行状态
+
+**响应:**
+```json
+{
+  "job_id": "任务唯一标识",
+  "status": "PENDING|COMPLETE|ERROR",
+  "result": "处理结果",
+  "events": [
+    {
+      "timestamp": "2024-01-01T00:00:00",
+      "data": "事件描述"
+    }
+  ]
+}
+```
+
+## 🏗️ 项目结构
+
+详细的项目结构说明请查看 [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+
+```
+crewaiBackend/
+├── 📄 main.py                    # 主服务器入口
+├── 📄 crew.py                    # CrewAI核心逻辑
+├── 📁 utils/                     # 工具模块
+│   ├── jobManager.py             # 任务管理器
+│   ├── myLLM.py                 # LLM配置
+│   ├── rag_retriever.py         # RAG检索器
+│   └── word_processor.py        # Word文档处理器
+├── 📁 scripts/                   # 脚本文件
+│   ├── process_word_docs.py     # Word文档处理
+│   ├── check_status.py          # 项目状态检查
+│   └── cleanup.py               # 项目清理
+├── 📁 tests/                     # 测试文件
+├── 📁 docs/                      # 文档
+└── 📁 rag_documents/             # RAG文档存储
+    ├── sample_product.docx       # 示例产品文档
+    ├── taobao_customer_service.md # 客服问答库
+```
+
+## 🔧 配置说明
+
+### 环境变量
+- `SERPER_API_KEY`: Google搜索API密钥
+- `GOOGLE_API_KEY`: Google Gemini API密钥
+
+### LLM配置
+支持多种LLM提供商：
+- **Google Gemini**: 推荐，支持多模态
+- **OpenAI GPT**: 需要API密钥
+- **本地模型**: 通过Ollama等
+
+### RAG文档配置
+- 支持Markdown文档
+- 支持Word文档（.docx）
+- 自动提取图片和文字
+- 按产品分组处理
+
+## 📚 文档指南
+
+- [项目结构说明](PROJECT_STRUCTURE.md)
+- [Google API设置](docs/GOOGLE_API_SETUP.md)
+- [Word文档使用说明](docs/WORD_DOCS_USAGE.md)
+- [RAG文档系统说明](docs/README.md)
+
+## 🧪 测试和调试
+
+### 运行测试
+```bash
+# 检查项目状态
+python scripts/check_status.py
+
+# 测试Word文档处理
+python scripts/process_word_docs.py
+
+# 清理项目文件
+python scripts/cleanup.py
+```
+
+### 调试模式
+```bash
+# 启用调试模式
+python main.py --debug
+```
+
+## 🛠️ 开发指南
+
+### 添加新的Agent
+1. 在 `crew.py` 中定义新的Agent
+2. 配置角色、目标和背景故事
+3. 添加到Crew中
+
+### 添加新的Task
+1. 在 `crew.py` 中定义新的Task
+2. 配置描述、期望输出和Agent
+3. 添加到任务流程中
+
+### 扩展RAG功能
+1. 在 `utils/rag_retriever.py` 中添加新的检索方法
+2. 更新知识库文档
+3. 测试检索效果
+
+## 🔍 故障排除
+
+### 常见问题
+1. **依赖安装失败**: 检查Python版本（需要3.10+）
+2. **API调用失败**: 检查API密钥和网络连接
+3. **任务执行失败**: 查看控制台日志输出
+4. **Word文档处理失败**: 检查文档格式和权限
+
+### 日志查看
+服务器运行时会输出详细的日志信息：
+- 任务执行状态
+- API调用结果
+- 错误信息和堆栈跟踪
+
+## 🤝 贡献指南
+
+1. Fork项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建Pull Request
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+
+## 🙏 致谢
+
+- [CrewAI](https://github.com/joaomdmoura/crewAI) - 多Agent协作框架
+- [LangChain](https://github.com/langchain-ai/langchain) - LLM应用开发框架
+- [Flask](https://flask.palletsprojects.com/) - Web框架
