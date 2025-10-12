@@ -3,7 +3,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 GOOGLE_CHAT_MODEL = "gemini-2.5-flash"
-GOOGLE_CHAT_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyBMHuVj_rxv2f-VfYl6c_tDO8FghDFMBEs")
+GOOGLE_CHAT_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 # 模型初始化函数
 def my_llm(llmType):
