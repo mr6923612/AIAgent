@@ -1,315 +1,229 @@
 # -*- coding: utf-8 -*-
 # 客服机器人CrewAI配置
-# 支持多模态输入、RAG检索和产品推荐
+# 使用RAGFlow替换CrewAI内置RagTool
 
-from crewai import Agent, Crew, Process, Task
+from crewai import Agent, Crew, Process
 from utils.jobManager import append_event
-from utils.rag_retriever import rag_retriever
+from utils.ragflow_client import create_ragflow_client, DEFAULT_CHAT_ID
 import json
+import os
+import requests
+from datetime import datetime
 
-class CustomerServiceCrew:
-    """客服机器人CrewAI类"""
+# 导入配置
+try:
+    from config import config
+except ImportError:
+    config = None
+
+
+class CrewtestprojectCrew:
+    """客服机器人CrewAI类 - 使用RAGFlow替换CrewAI RagTool"""
     
     def __init__(self, job_id, llm):
         self.job_id = job_id
         self.llm = llm
-        # 初始化RAG检索器
-        self.rag_retriever = rag_retriever
-
+        # 初始化RAGFlow客户端
+        self.ragflow_client = create_ragflow_client()
+        self.session_id = None  # 存储会话ID
 
     def append_event_callback(self, task_output):
         """任务完成回调函数"""
-        print("Callback called: %s", task_output)
-        append_event(self.job_id, task_output.raw)
-    
-    def _create_rag_search_tool(self):
-        """创建RAG搜索工具"""
-        def rag_search_function(query: str, route_decision: str = "PRODUCT_QUERY") -> str:
-            """使用RAG检索器进行搜索"""
-            try:
-                append_event(self.job_id, f"使用RAG检索器搜索: {query[:50]}...")
-                
-                # 使用RAG检索器进行搜索
-                results = self.rag_retriever.search(query, route_decision=route_decision)
-                
-                if not results:
-                    append_event(self.job_id, "RAG检索器未找到相关信息")
-                    return "未找到相关信息"
-                
-                # 格式化结果
-                formatted_results = []
-                for result in results[:3]:  # 取前3个结果
-                    if result.get("type") == "inquiry":
-                        formatted_results.append(f"询问: {result.get('content', '')}")
-                    else:
-                        formatted_results.append(f"相关信息: {result.get('content', '')}")
-                
-                append_event(self.job_id, f"RAG检索器搜索完成，找到{len(results)}条相关信息")
-                return "\n".join(formatted_results)
-                
-            except Exception as e:
-                append_event(self.job_id, f"RAG检索器搜索失败: {str(e)}")
-                return f"搜索失败: {str(e)}"
-        
-        return rag_search_function
-
-    def _perform_rag_search(self, query: str, image_data: str = None, route_decision: str = "PRODUCT_QUERY") -> str:
-        """使用RAG检索器执行搜索"""
-        try:
-            append_event(self.job_id, f"使用RAG检索器搜索: {query[:50]}...")
-            append_event(self.job_id, f"搜索参数 - 路由: {route_decision}, 图片: {'有' if image_data else '无'}")
-            
-            # 使用RAG检索器进行搜索
-            results = self.rag_retriever.search(query, route_decision=route_decision)
-            
-            if not results:
-                append_event(self.job_id, "RAG检索器未找到相关信息")
-                return "未找到相关信息"
-            
-            # 格式化结果
-            formatted_results = []
-            for result in results[:3]:  # 取前3个结果
-                if result.get("type") == "inquiry":
-                    formatted_results.append(f"询问: {result.get('content', '')}")
-                else:
-                    formatted_results.append(f"相关信息: {result.get('content', '')}")
-            
-            append_event(self.job_id, f"RAG检索器搜索完成，找到{len(results)}条相关信息")
-            return "\n".join(formatted_results)
-            
-        except Exception as e:
-            append_event(self.job_id, f"RAG检索器搜索失败: {str(e)}")
-            return f"搜索失败: {str(e)}"
+        print("Callback called:", task_output)
+        append_event(self.job_id, task_output.raw if hasattr(task_output, "raw") else str(task_output))
 
     def create_agents(self):
         """创建客服机器人相关的Agent"""
-        
-        # 1. 输入理解Agent
-        input_analyzer = Agent(
-            role="客户输入理解助手",
-            goal="理解客户的输入内容，进行路由判断",
-            backstory="""你是一个简洁高效的输入理解助手。
-            你的职责：
-            - 分析客户输入的文字内容
-            - 判断问题是通用客服问题还是产品问题
-            - 提取关键信息""",
-            verbose=False,
-            llm=self.llm,
-        )
 
-        # 2. 知识检索Agent
-        knowledge_retriever = Agent(
-            role="知识检索助手",
-            goal="从知识库中快速检索相关信息",
-            backstory="""你是一个高效的知识检索助手。
-            你的职责：
-            - 根据客户问题从知识库检索相关信息
-            - 整理和总结检索结果
-            - 提供准确的知识支持""",
-            verbose=False,
-            llm=self.llm,
-        )
-
-        # 3. 拟人客服Agent
+        # 1. 智能客服Agent
         customer_service_agent = Agent(
-            role="拟人客服机器人",
-            goal="以拟人的方式回复客户，提供友好专业的客服体验",
-            backstory="""你是一个拟人的客服机器人，像真人客服一样与客户交流。
+            role="智能客服代表",
+            goal="为客户提供友好、专业的服务，像真人客服一样自然回复",
+            backstory="""你是一位经验丰富的客服代表，具备强大的语言识别和回复能力。
             你的特点：
-            - 语言自然、友好、有温度
-            - 像真人一样理解和回应客户
-            - 基于知识库信息提供准确回答
-            - 保持客服的专业性和亲和力""",
+            - 能够自动识别客户使用的语言（中文、英文、其他语言）
+            - 使用相同的语言进行自然、亲切的回复
+            - 语言表达自然流畅，像朋友一样交流
+            - 能够准确理解客户需求并提供专业回答
+            - 基于公司信息提供准确回答
+            - 始终保持耐心和专业的态度
+            - 即使没有相关信息，也会基于专业知识尽力帮助客户
+            - 回复简洁明了，直接解决客户问题
+            - 回答完全像真人客服一样自然，不会有任何技术痕迹""",
             verbose=False,
             llm=self.llm,
         )
 
         return {
-            "input_analyzer": input_analyzer,
-            "knowledge_retriever": knowledge_retriever,
             "customer_service_agent": customer_service_agent
         }
 
+    def call_ragflow(self, customer_input, route_decision="PRODUCT_QUERY", ragflow_session_id=None):
+        """调用RAGFlow进行知识检索并返回摘要"""
+        try:
+            append_event(self.job_id, f"开始调用RAGFlow进行知识检索...")
+            
+            # 使用传入的RAGFlow会话ID
+            session_id_to_use = ragflow_session_id
+            
+            if not session_id_to_use:
+                append_event(self.job_id, "警告: 没有RAGFlow会话ID，将创建新会话")
+                # 只有在没有会话ID时才创建新会话
+                session_data = self.ragflow_client.create_session(
+                    chat_id=DEFAULT_CHAT_ID,
+                    name=f"客服会话_{self.job_id}",
+                    user_id=f"user_{self.job_id}"
+                )
+                session_id_to_use = session_data.get('id')
+                append_event(self.job_id, f"RAGFlow会话创建成功: {session_id_to_use}")
+            else:
+                append_event(self.job_id, f"使用现有RAGFlow会话: {session_id_to_use}")
+            
+            # 使用RAGFlow进行对话
+            append_event(self.job_id, f"向RAGFlow发送问题: {customer_input}")
+            answer_data = self.ragflow_client.converse(
+                chat_id=DEFAULT_CHAT_ID,
+                question=customer_input,
+                session_id=session_id_to_use
+            )
+            
+            # 提取回答和引用信息
+            answer = answer_data.get('answer', '')
+            reference = answer_data.get('reference', {})
+            
+            # 构建摘要信息
+            summary_parts = []
+            if answer:
+                summary_parts.append(f"回答: {answer}")
+            
+            if reference and reference.get('chunks'):
+                chunks = reference['chunks']
+                summary_parts.append(f"相关文档片段数量: {len(chunks)}")
+                for i, chunk in enumerate(chunks[:3]):  # 只显示前3个片段
+                    content = chunk.get('content', '')[:200] + '...' if len(chunk.get('content', '')) > 200 else chunk.get('content', '')
+                    summary_parts.append(f"片段{i+1}: {content}")
+            
+            summary = "\n".join(summary_parts) if summary_parts else "未找到相关信息"
+            
+            append_event(self.job_id, f"RAGFlow检索完成，获得{len(answer)}字符的回答")
+            return summary
+            
+        except Exception as e:
+            append_event(self.job_id, f"调用RAGFlow失败: {str(e)}")
+            import traceback
+            append_event(self.job_id, f"错误详情: {traceback.format_exc()}")
+            # 出错时返回空摘要
+            return ""
+
     def create_tasks(self, agents, inputs, route_decision="PRODUCT_QUERY"):
-        """创建客服机器人的任务流程"""
+        """创建客服机器人的任务流程（不再使用CrewAI Task进行知识检索）"""
+        from crewai import Task
+
+        customer_input = inputs.get("customer_input", "")
+        session_id = inputs.get("session_id")
         
-        # 任务1：输入理解
-        input_analysis_task = Task(
-            description=f"""
-            理解客户输入：
-            
-            客户输入：{inputs.get('customer_input', '')}
-            {'图片数据：已上传图片文件' if inputs.get('image_data') else ''}
-            
-            请执行：
-            1. 判断问题类型：通用客服问题 或 产品问题
-            2. 提取关键信息
-            
-            输出格式：
-            ROUTE: [GENERAL_SERVICE 或 PRODUCT_QUERY]
-            问题分类：[具体问题类型]
-            关键信息：[提取的关键信息]
-            """,
-            expected_output="路由决策和关键信息",
-            agent=agents["input_analyzer"],
-            callback=self.append_event_callback,
-        )
+        # 获取上下文信息和RAGFlow会话ID
+        context_info = ""
+        ragflow_session_id = None
+        if session_id:
+            try:
+                from utils.sessionManager import SessionManager
+                session_manager = SessionManager()
+                session = session_manager.get_session(session_id)
+                if session:
+                    context_info = session.get_context_summary(max_messages=5)
+                    ragflow_session_id = session.ragflow_session_id
+                    append_event(self.job_id, f"获取到会话上下文，包含{len(session.messages)}条消息")
+                    append_event(self.job_id, f"RAGFlow会话ID: {ragflow_session_id}")
+            except Exception as e:
+                append_event(self.job_id, f"获取上下文失败: {str(e)}")
 
-        # 任务2：知识检索
-        knowledge_retrieval_task = Task(
-            description=f"""
-            从知识库检索相关信息：
-            
-            客户问题：{inputs.get('customer_input', '')}
-            路由决策：{route_decision}
-            
-            请使用RAG检索器从知识库中搜索相关信息，然后整理检索结果，提供相关信息摘要。
-            """,
-            expected_output="检索到的相关信息摘要",
-            agent=agents["knowledge_retriever"],
-            callback=self.append_event_callback,
-        )
+        # 直接调用RAGFlow，传递会话ID
+        retrieved_summary = self.call_ragflow(customer_input, route_decision, ragflow_session_id)
 
-        # 任务3：拟人客服回复
+        # 智能客服回复任务（基于RAGFlow结果）
         customer_service_task = Task(
             description=f"""
-            以拟人方式回复客户：
-            
-            客户问题：{inputs.get('customer_input', '')}
-            检索信息：{knowledge_retrieval_task}
-            
-            请像真人客服一样回复客户，语言自然友好，基于检索信息提供准确回答。
+                作为智能客服代表，请为客户提供专业、友好的服务。
+                
+                客户问题：{customer_input}
+                
+                知识库信息：{retrieved_summary}
+                
+                对话历史：{context_info if context_info else "这是新对话"}
+                
+                重要提醒：
+                - 你的回答必须像真人客服一样自然，不要暴露任何技术细节
+                - 绝对不要提及"知识库"、"数据库"、"系统"、"AI"等词汇
+                - 不要说明信息来源或检索过程
+                - 就像你本来就了解这些信息一样自然地回答
+                - 不要主动建议客户去官网、门店或其他渠道获取信息
+                - 不要添加"或者您可以在..."、"建议您..."等扩展性建议
+                - 只回答客户直接问的问题，不要额外推荐其他渠道
+                
+                服务要求：
+                1. 自动识别客户语言并使用相同语言回复（中文/英文/其他语言）
+                2. 语言表达自然流畅，像朋友一样亲切交流
+                3. 准确理解客户需求，提供专业回答
+                4. 基于提供的知识库信息进行回答，确保信息准确性
+                5. 如果客户问的是关于之前对话的问题，请结合对话历史来回答
+                6. 即使没有相关信息，也要基于专业知识尽力帮助客户
+                7. 始终保持耐心和专业态度
+                8. 回复简洁明了，直接解决客户问题
+                9. 回答要像真人客服一样自然，不要有任何技术痕迹
+                10. 专注于回答客户的问题，不要主动推荐其他渠道或扩展建议
+                11. 如果客户问"刚才你介绍了什么功能？"或类似问题，请结合对话历史中的相关信息来回答
             """,
-            expected_output="拟人的客服回复",
-            agent=agents["customer_service_agent"],
-            callback=self.append_event_callback,
+            expected_output="像真人客服一样的自然回复，使用客户相同的语言，结合对话历史和知识库信息",
+            agent=agents["customer_service_agent"]
         )
 
-        return [
-            input_analysis_task,
-            knowledge_retrieval_task,
-            customer_service_task
-        ]
+        return [customer_service_task]
 
     def create_crew(self, agents, tasks):
-        """创建客服机器人Crew"""
+        """创建客服机器人Crew（原Crew结构可保留）"""
         return Crew(
             agents=list(agents.values()),
             tasks=tasks,
-            process=Process.sequential,  # 顺序执行
+            process=Process.sequential,
             verbose=False
         )
 
     def kickoff(self, inputs):
         """启动客服机器人分析流程"""
         try:
-            # 创建Agent
             append_event(self.job_id, "正在初始化智能客服机器人...")
             agents = self.create_agents()
             append_event(self.job_id, "智能客服机器人初始化完成")
             
-            # 执行输入理解和路由判断
-            append_event(self.job_id, "input_analyzer 开始分析客户输入...")
-            input_task = self.create_input_analysis_task(agents, inputs)
-            try:
-                input_result = input_task.execute()
-                append_event(self.job_id, "input_analyzer 分析完成")
-            except (StopIteration, Exception) as e:
-                append_event(self.job_id, f"input_analyzer 执行异常，使用备用路由判断: {str(e)}")
-                # 根据输入内容简单判断路由
-                customer_input = inputs.get('customer_input', '').lower()
-                if any(keyword in customer_input for keyword in ['退货', '换货', '物流', '支付', '会员', '优惠', '客服', '投诉', '退款', '发货', '快递']):
-                    input_result = "ROUTE: GENERAL_SERVICE\n通用客服问题"
-                else:
-                    input_result = "ROUTE: PRODUCT_QUERY\n产品相关问题"
-                append_event(self.job_id, f"备用路由判断完成: {input_result}")
-            
-            # 检查路由决策
-            route_decision = self._extract_route_decision(input_result)
-            append_event(self.job_id, f"路由决策确定: {route_decision}")
-            
-            # 执行知识检索和客服回复
-            append_event(self.job_id, "knowledge_retriever 开始检索相关知识...")
-            tasks = self.create_tasks(agents, inputs, route_decision)
+            append_event(self.job_id, "开始执行客服机器人任务流程...")
+            tasks = self.create_tasks(agents, inputs)
             crew = self.create_crew(agents, tasks)
+            
             try:
                 results = crew.kickoff()
-                append_event(self.job_id, "knowledge_retriever 和 customer_service_agent 工作完成")
+                append_event(self.job_id, "客服机器人任务流程完成")
             except (StopIteration, Exception) as e:
-                append_event(self.job_id, f"knowledge_retriever 和 customer_service_agent 执行异常: {str(e)}")
-                # 提供基于路由决策的简单回答
-                if route_decision == "GENERAL_SERVICE":
-                    results = "抱歉，系统暂时无法处理您的通用客服问题，请稍后重试或联系人工客服。"
-                    append_event(self.job_id, "使用通用客服备用回复")
-                else:
-                    results = "抱歉，系统暂时无法处理您的产品咨询，请稍后重试或联系人工客服。"
-                    append_event(self.job_id, "使用产品咨询备用回复")
+                append_event(self.job_id, f"客服机器人任务执行异常: {str(e)}")
+                results = "抱歉，系统暂时无法处理您的请求，请稍后重试或联系人工客服。"
+                append_event(self.job_id, "使用备用回复")
             
             final_result = self.format_final_result(results, inputs)
             return final_result
-            
         except Exception as e:
-            append_event(self.job_id, f"客服机器人分析过程中出现错误: {str(e)}")
-            return f"分析失败: {str(e)}"
-
-    def create_input_analysis_task(self, agents, inputs):
-        """创建输入分析任务"""
-        return Task(
-            description=f"""
-            输入分析和路由判断：
-            
-            客户输入：{inputs.get('customer_input', '')}
-            输入类型：{inputs.get('input_type', 'text')}
-            
-            {'图片数据：已上传图片文件' if inputs.get('image_data') else ''}
-            
-            请执行路由判断：
-            根据客户的问题内容，判断属于以下哪一类：
-            
-            A. 通用客服问题 - 包含以下关键词的问题：
-               - 退换货、退款、退货、换货
-               - 物流、发货、快递、配送
-               - 支付、付款、订单、会员
-               - 优惠、活动、促销、客服
-               - 投诉、建议、反馈
-            
-            B. 产品相关问题 - 其他所有问题：
-               - 产品功效、使用方法、成分
-               - 适用人群、产品对比、效果
-               - 产品咨询、购买建议
-            
-            输出格式（严格按照以下格式）：
-            ROUTE: [GENERAL_SERVICE 或 PRODUCT_QUERY]
-            问题分类：[具体的问题类型]
-            关键信息：[提取的关键信息]
-            """,
-            expected_output="路由决策，包含ROUTE标记、问题分类和关键信息",
-            agent=agents["input_analyzer"],
-            callback=self.append_event_callback,
-        )
-
-    def _extract_route_decision(self, analysis_result: str) -> str:
-        """从分析结果中提取路由决策"""
-        try:
-            if "ROUTE: GENERAL_SERVICE" in analysis_result:
-                return "GENERAL_SERVICE"
-            elif "ROUTE: PRODUCT_QUERY" in analysis_result:
-                return "PRODUCT_QUERY"
-            else:
-                # 默认按产品问题处理
-                return "PRODUCT_QUERY"
-        except Exception as e:
-            print(f"提取路由决策失败: {str(e)}")
-            return "PRODUCT_QUERY"
-
+            append_event(self.job_id, f"启动客服机器人分析流程失败: {str(e)}")
+            return f"启动客服机器人分析流程失败: {str(e)}"
 
     def format_final_result(self, results, inputs):
-        """格式化最终结果"""
-        return f"""
-{results}
-        """
-
-# 为了保持与原始代码的兼容性，创建CrewtestprojectCrew类
-class CrewtestprojectCrew(CustomerServiceCrew):
-    """保持与原始代码兼容的类名"""
-    pass
+        """格式化最终结果，只返回简洁的自然回答"""
+        # 提取CrewAI的原始回答
+        if hasattr(results, 'raw'):
+            response_text = results.raw
+        elif hasattr(results, 'tasks_output') and results.tasks_output:
+            # 从任务输出中提取回答
+            response_text = results.tasks_output[0].raw
+        else:
+            response_text = str(results)
+        
+        # 只返回简洁的回答
+        return response_text

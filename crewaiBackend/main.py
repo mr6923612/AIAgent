@@ -8,6 +8,8 @@
 
 import os
 import json
+import logging
+import sys
 from datetime import datetime
 from threading import Thread
 from uuid import uuid4
@@ -16,17 +18,51 @@ from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 import base64
 
-from crew_with_crewai_rag import CrewtestprojectCrew
+# 强制设置标准输出为无缓冲模式，确保Docker日志能立即显示
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+# 配置日志 - 简化版本，确保控制台输出
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
+# 确保print也能正常输出
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
+print("=== AI Agent 后端服务启动 ===")
+print(f"Python版本: {sys.version}")
+print(f"当前工作目录: {os.getcwd()}")
+print("=" * 40)
+
+# 导入配置文件
+try:
+    from config import config
+    logger.info("成功加载配置文件")
+    LLM_TYPE = config.LLM_TYPE
+    PORT = config.PORT
+except ImportError:
+    print("警告: 未找到config.py文件，请复制config.py.template为config.py并配置API密钥")
+    # 使用默认值
+    os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
+    os.environ["RAGFLOW_BASE_URL"] = os.getenv("RAGFLOW_BASE_URL", "http://localhost:80")
+    os.environ["RAGFLOW_API_KEY"] = os.getenv("RAGFLOW_API_KEY", "")
+    os.environ["RAGFLOW_CHAT_ID"] = os.getenv("RAGFLOW_CHAT_ID", "63854abaabb511f0bf790ec84fa37cec")
+    os.environ["FLASK_ENV"] = os.getenv("FLASK_ENV", "development")
+    os.environ["FLASK_DEBUG"] = os.getenv("FLASK_DEBUG", "True")
+    os.environ["PORT"] = os.getenv("PORT", "8012")
+    LLM_TYPE = "google"
+    PORT = 8012
+
+from crew import CrewtestprojectCrew
 from utils.jobManager import append_event, jobs, jobs_lock, Event
 from utils.myLLM import my_llm
 from utils.speech_to_text import speech_converter
-
-
-# 服务访问的端口
-PORT = 8012
-# 设置SERPER_API_KEY环境变量，用于Google搜索引擎的API
-os.environ["SERPER_API_KEY"] = "9d2aa95f5a0831110a3ec837996ff37b906e99dd"
-LLM_TYPE = "google"
+from utils.sessionManager import SessionManager
 
 
 # 创建Flask应用实例
@@ -34,16 +70,109 @@ app = Flask(__name__)
 # 启用CORS，处理跨域资源共享以便任何来源的请求可以访问以/api/开头的接口
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+# 初始化会话管理器
+session_manager = SessionManager()
+
+
+def create_ragflow_client():
+    """创建RAGFlow客户端"""
+    try:
+        from utils.ragflow_client import create_ragflow_client
+        return create_ragflow_client()
+    except Exception as e:
+        logger.error(f"创建RAGFlow客户端失败: {e}")
+        return None
+
+
+def handle_api_error(error_msg: str, status_code: int = 500):
+    """统一处理API错误"""
+    logger.error(error_msg)
+    return jsonify({"error": error_msg}), status_code
+
+
+def process_file_upload(request):
+    """处理文件上传请求"""
+    customer_input = request.form.get('customer_input', '')
+    input_type = request.form.get('input_type', 'text')
+    additional_context = request.form.get('additional_context', '')
+    customer_domain = request.form.get('customer_domain', '')
+    project_description = request.form.get('project_description', '')
+    session_id = request.form.get('session_id')
+    
+    image_data = None
+    audio_data = None
+    
+    # 处理图片文件
+    if 'image' in request.files:
+        image_file = request.files['image']
+        if image_file and image_file.filename:
+            image_data = base64.b64encode(image_file.read()).decode('utf-8')
+            input_type = 'text+image' if customer_input.strip() else 'image'
+            customer_input = f"{customer_input} [上传了图片]"
+    
+    # 处理音频文件
+    if 'audio' in request.files:
+        audio_file = request.files['audio']
+        if audio_file and audio_file.filename:
+            audio_data = base64.b64encode(audio_file.read()).decode('utf-8')
+            transcribed_text = speech_converter.convert_audio_to_text(audio_data)
+            
+            if transcribed_text:
+                customer_input = transcribed_text
+                input_type = 'voice'
+                audio_data = None
+            else:
+                raise ValueError("语音转文字失败，请重新录音或直接输入文字")
+    
+    return {
+        "customer_input": customer_input,
+        "input_type": input_type,
+        "additional_context": additional_context,
+        "customer_domain": customer_domain,
+        "project_description": project_description,
+        "image_data": image_data,
+        "audio_data": audio_data,
+        "session_id": session_id
+    }
+
+
+def process_json_request(request):
+    """处理JSON请求"""
+    data = request.json
+    if not data or 'customer_input' not in data:
+        abort(400, description="Invalid input data provided. Required: customer_input")
+    
+    return {
+        "customer_input": data['customer_input'],
+        "input_type": data.get('input_type', 'text'),
+        "additional_context": data.get('additional_context', ''),
+        "customer_domain": data.get('customer_domain', ''),
+        "project_description": data.get('project_description', ''),
+        "image_data": None,
+        "audio_data": None,
+        "session_id": data.get('session_id')
+    }
+
 
 def kickoff_crew(job_id, inputs):
     """异步执行客服机器人分析"""
-    global LLM_TYPE
-    print(f"开始处理任务 {job_id}")
+    session_id = inputs.get('session_id', 'unknown')
+    session_prefix = f"[会话:{session_id[:8]}]" if session_id != 'unknown' else "[会话:unknown]"
+    
+    print(f"{session_prefix} 开始处理任务 {job_id}")
     
     try:
-        # 创建客服机器人实例并执行分析
-        results = CrewtestprojectCrew(job_id, my_llm(LLM_TYPE)).kickoff(inputs)
-        print(f"任务 {job_id} 分析完成")
+        # 验证输入数据
+        if not inputs.get("customer_input", "").strip():
+            raise ValueError("客户输入不能为空")
+        
+        # 初始化LLM和Crew
+        llm_instance = my_llm(LLM_TYPE)
+        crew_instance = CrewtestprojectCrew(job_id, llm_instance)
+        
+        # 执行分析
+        results = crew_instance.kickoff(inputs)
+        print(f"{session_prefix} 任务 {job_id} 分析完成")
         
         # 更新任务状态为完成
         with jobs_lock:
@@ -53,8 +182,9 @@ def kickoff_crew(job_id, inputs):
                 Event(timestamp=datetime.now(), data="客服机器人分析完成"))
                 
     except Exception as e:
-        # 处理异常
-        print(f"任务 {job_id} 分析错误: {e}")
+        error_msg = f"{session_prefix} 任务 {job_id} 分析错误: {e}"
+        print(error_msg)
+        
         append_event(job_id, f"客服机器人分析过程中出现错误: {e}")
         with jobs_lock:
             jobs[job_id].status = 'ERROR'
@@ -64,88 +194,32 @@ def kickoff_crew(job_id, inputs):
 @app.route('/api/crew', methods=['POST'])
 def run_crew():
     """处理客服机器人请求"""
-    print("收到客服机器人请求")
-    
-    # 处理文件上传请求
-    if request.files:
-        print("检测到文件上传请求")
-        customer_input = request.form.get('customer_input', '')
-        input_type = request.form.get('input_type', 'text')
-        additional_context = request.form.get('additional_context', '')
-        customer_domain = request.form.get('customer_domain', '')
-        project_description = request.form.get('project_description', '')
+    try:
+        # 处理不同类型的请求
+        if request.files:
+            inputs = process_file_upload(request)
+        else:
+            inputs = process_json_request(request)
         
-        # 处理图片文件
-        image_data = None
-        if 'image' in request.files:
-            image_file = request.files['image']
-            if image_file and image_file.filename:
-                print(f"接收到图片文件: {image_file.filename}")
-                image_data = base64.b64encode(image_file.read()).decode('utf-8')
-                input_type = 'text+image' if customer_input.strip() else 'image'
-                customer_input = f"{customer_input} [上传了图片]"
+        session_id = inputs.get('session_id')
+        session_prefix = f"[会话:{session_id[:8]}]" if session_id else "[会话:unknown]"
         
-        # 处理音频文件（语音转文字）
-        if 'audio' in request.files:
-            audio_file = request.files['audio']
-            if audio_file and audio_file.filename:
-                print(f"接收到音频文件: {audio_file.filename}")
-                audio_data = base64.b64encode(audio_file.read()).decode('utf-8')
-                
-                # 语音转文字
-                print("开始语音转文字...")
-                transcribed_text = speech_converter.convert_audio_to_text(audio_data)
-                
-                if transcribed_text:
-                    print(f"语音转文字成功: {transcribed_text}")
-                    customer_input = transcribed_text
-                    input_type = 'voice'
-                    # 语音转文字成功后，不再需要传递音频数据给LLM
-                    audio_data = None
-                else:
-                    print("语音转文字失败，直接返回错误信息")
-                    # 语音转文字失败时，直接返回错误信息，不调用LLM
-                    return jsonify({
-                        "error": "抱歉，我无法听清楚您刚才说的话。请您：\n\n1. 在安静的环境中重新录音\n2. 说话时声音稍微大一些，语速慢一些\n3. 或者您也可以直接输入文字，我会立即为您处理\n\n感谢您的理解，期待为您提供更好的服务！"
-                    }), 400
+        print(f"{session_prefix} 收到客服机器人请求")
         
-        inputs = {
-            "customer_input": customer_input,
-            "input_type": input_type,
-            "additional_context": additional_context,
-            "customer_domain": customer_domain,
-            "project_description": project_description,
-            "image_data": image_data,
-            "audio_data": audio_data
-        }
-    else:
-        # 处理JSON请求
-        data = request.json
-        if not data or 'customer_input' not in data:
-            abort(400, description="Invalid input data provided. Required: customer_input")
+        # 创建任务并异步执行
+        job_id = str(uuid4())
+        append_event(job_id, "客服机器人开始分析客户需求...")
         
-        print(f"接收到的客户输入: {data['customer_input']}")
+        thread = Thread(target=kickoff_crew, args=(job_id, inputs))
+        thread.start()
         
-        inputs = {
-            "customer_input": data['customer_input'],
-            "input_type": data.get('input_type', 'text'),
-            "additional_context": data.get('additional_context', ''),
-            "customer_domain": data.get('customer_domain', ''),
-            "project_description": data.get('project_description', ''),
-            "image_data": None,
-            "audio_data": None
-        }
-    
-    # 创建任务并异步执行
-    job_id = str(uuid4())
-    
-    # 初始化任务状态
-    append_event(job_id, "客服机器人开始分析客户需求...")
-    
-    thread = Thread(target=kickoff_crew, args=(job_id, inputs))
-    thread.start()
-    
-    return jsonify({"job_id": job_id}), 202
+        print(f"{session_prefix} 任务 {job_id} 已启动异步处理")
+        return jsonify({"job_id": job_id}), 202
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return handle_api_error(f"处理请求失败: {str(e)}", 500)
 
 
 
@@ -172,6 +246,97 @@ def get_status(job_id):
     })
 
 
+@app.route('/api/sessions', methods=['POST'])
+def create_session():
+    """创建新的聊天会话"""
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id', 'anonymous')
+        title = data.get('title')
+        
+        # 创建RAGFlow客户端
+        ragflow_client = create_ragflow_client()
+        
+        # 创建会话（包含RAGFlow会话）
+        session = session_manager.create_session(
+            user_id=user_id, 
+            title=title, 
+            ragflow_client=ragflow_client
+        )
+        
+        return jsonify({
+            "session_id": session.session_id,
+            "title": session.title,
+            "created_at": session.created_at.isoformat(),
+            "ragflow_session_id": session.ragflow_session_id
+        }), 201
+        
+    except Exception as e:
+        return handle_api_error(f"创建会话失败: {str(e)}", 500)
+
+
+@app.route('/api/sessions/<session_id>', methods=['GET'])
+def get_session(session_id):
+    """获取会话详情"""
+    session = session_manager.get_session(session_id)
+    if not session:
+        abort(404, description="Session not found")
+    
+    return jsonify(session.to_dict())
+
+
+@app.route('/api/sessions/<session_id>/messages', methods=['POST'])
+def add_message(session_id):
+    """添加消息到会话"""
+    data = request.json
+    if not data or 'role' not in data or 'content' not in data:
+        abort(400, description="Missing role or content")
+    
+    message = session_manager.add_message(session_id, data['role'], data['content'])
+    if not message:
+        abort(404, description="Session not found")
+    
+    return jsonify(message.to_dict()), 201
+
+
+@app.route('/api/sessions/<session_id>', methods=['PUT'])
+def update_session(session_id):
+    """更新会话标题"""
+    data = request.json
+    if not data or 'title' not in data:
+        abort(400, description="Missing title")
+    
+    session_manager.update_session_title(session_id, data['title'])
+    return jsonify({"message": "Session updated successfully"})
+
+
+@app.route('/api/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """删除会话"""
+    try:
+        # 创建RAGFlow客户端
+        ragflow_client = create_ragflow_client()
+        
+        # 删除会话（包含RAGFlow会话）
+        success = session_manager.delete_session(session_id, ragflow_client)
+        if not success:
+            return handle_api_error("Session not found", 404)
+        
+        return jsonify({"message": "Session deleted successfully"})
+        
+    except Exception as e:
+        return handle_api_error(f"删除会话失败: {str(e)}", 500)
+
+
+@app.route('/api/users/<user_id>/sessions', methods=['GET'])
+def get_user_sessions(user_id):
+    """获取用户的所有会话"""
+    sessions = session_manager.get_user_sessions(user_id)
+    return jsonify([session.to_dict() for session in sessions])
+
+
 if __name__ == '__main__':
-    print(f"在端口 {PORT} 上启动服务器")
-    app.run(debug=True, port=PORT)
+    logger.info(f"在端口 {PORT} 上启动服务器")
+    debug_mode = config.FLASK_DEBUG == "True" or config.FLASK_DEBUG is True
+    logger.info(f"Debug模式: {debug_mode}")
+    app.run(debug=debug_mode, port=PORT)

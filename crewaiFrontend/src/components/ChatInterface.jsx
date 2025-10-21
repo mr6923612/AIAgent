@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, LogOut, User, Bot, Mic, MicOff, Image, X, Loader2 } from 'lucide-react'
-import axios from 'axios'
+import { Send, LogOut, User, Bot, Mic, MicOff, Image, X, Loader2, MessageSquare, Plus, Trash2 } from 'lucide-react'
+import { sessionAPI, crewAPI, errorHandler } from '../utils/api'
 import './ChatInterface.css'
 
 const ChatInterface = ({ user, onLogout }) => {
@@ -18,6 +18,10 @@ const ChatInterface = ({ user, onLogout }) => {
   const [uploadedImage, setUploadedImage] = useState(null)
   const [recordedAudio, setRecordedAudio] = useState(null)
   const [currentJobId, setCurrentJobId] = useState(null)
+  const [timeoutId, setTimeoutId] = useState(null)
+  const [currentSessionId, setCurrentSessionId] = useState(null)
+  const [sessions, setSessions] = useState([])
+  const [showSessionList, setShowSessionList] = useState(false)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const fileInputRef = useRef(null)
@@ -27,21 +31,184 @@ const ChatInterface = ({ user, onLogout }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // 会话管理功能
+  const createNewSession = async () => {
+    try {
+      const newSession = await sessionAPI.create(
+        user?.id || 'anonymous',
+        `新对话 ${new Date().toLocaleString()}`
+      )
+      
+      setCurrentSessionId(newSession.session_id)
+      
+      // 重置消息为新对话
+      setMessages([
+        {
+          id: 1,
+          type: 'bot',
+          content: '你好！我是智能客服机器人。请告诉我您需要什么帮助？',
+          timestamp: new Date()
+        }
+      ])
+      
+      // 刷新会话列表，但不自动加载会话
+      await refreshSessionsList()
+      
+      return newSession.session_id
+    } catch (error) {
+      const errorMsg = errorHandler.handleAPIError(error, '创建会话')
+      errorHandler.showError(errorMsg)
+      return null
+    }
+  }
+
+  // 仅刷新会话列表，不自动加载
+  const refreshSessionsList = async () => {
+    try {
+      const userId = user?.id || 'anonymous'
+      const sessions = await sessionAPI.getUserSessions(userId)
+      setSessions(sessions)
+    } catch (error) {
+      console.error('刷新会话列表失败:', error)
+    }
+  }
+
+  const loadSessions = async (skipAutoLoad = false) => {
+    try {
+      const userId = user?.id || 'anonymous'
+      const userSessions = await sessionAPI.getUserSessions(userId)
+      setSessions(userSessions)
+      
+      // 如果没有现有会话且不是跳过自动加载，创建第一个会话
+      if (userSessions.length === 0 && !skipAutoLoad) {
+        await createNewSession()
+      } else if (userSessions.length > 0 && !skipAutoLoad) {
+        // 如果有现有会话，加载最新的会话
+        const latestSession = userSessions[0] // 已经按更新时间排序
+        await loadSession(latestSession.session_id)
+      }
+    } catch (error) {
+      console.error('加载会话列表失败:', error)
+      // 如果加载失败，尝试创建新会话
+      if (!skipAutoLoad) {
+        await createNewSession()
+      }
+    }
+  }
+
+  const loadSession = async (sessionId) => {
+    try {
+      const session = await sessionAPI.get(sessionId)
+      
+      // 转换消息格式
+      const formattedMessages = session.messages.map(msg => ({
+        id: msg.id,
+        type: msg.role === 'user' ? 'user' : 'bot',
+        content: msg.content,
+        timestamp: new Date(msg.timestamp)
+      }))
+      
+      setMessages(formattedMessages)
+      setCurrentSessionId(sessionId)
+      setShowSessionList(false)
+      
+      // 刷新会话列表以更新当前会话状态
+      await refreshSessionsList()
+    } catch (error) {
+      const errorMsg = errorHandler.handleAPIError(error, '加载会话')
+      errorHandler.showError(errorMsg)
+    }
+  }
+
+  const saveMessageToSession = async (role, content) => {
+    if (!currentSessionId) return
+    
+    try {
+      await sessionAPI.addMessage(currentSessionId, role, content)
+    } catch (error) {
+      console.error('保存消息失败:', error)
+    }
+  }
+
+  const deleteSession = async (sessionId, event) => {
+    event.stopPropagation() // 阻止触发会话加载
+    
+    if (!window.confirm('确定要删除这个对话吗？删除后将无法恢复。')) {
+      return
+    }
+    
+    try {
+      await sessionAPI.delete(sessionId)
+      
+      // 如果删除的是当前会话，重置为初始状态
+      if (sessionId === currentSessionId) {
+        setCurrentSessionId(null)
+        setMessages([
+          {
+            id: 1,
+            type: 'bot',
+            content: '你好！我是智能客服机器人。请告诉我您需要什么帮助？',
+            timestamp: new Date()
+          }
+        ])
+      }
+      
+      // 刷新会话列表
+      await refreshSessionsList()
+      
+      console.log('会话删除成功')
+    } catch (error) {
+      const errorMsg = errorHandler.handleAPIError(error, '删除会话')
+      errorHandler.showError(errorMsg)
+    }
+  }
+
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [timeoutId])
+
+  // 组件初始化时加载会话列表
+  useEffect(() => {
+    loadSessions()
+  }, [])
+
   // 检查任务状态
   useEffect(() => {
     if (currentJobId && isLoading) {
+      // 设置1分钟超时
+      const timeout = setTimeout(() => {
+        setIsLoading(false)
+        setCurrentJobId(null)
+        
+        const timeoutMessage = {
+          id: Date.now(),
+          type: 'bot',
+          content: '抱歉，服务器响应超时。请稍后重试或联系人工客服。',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, timeoutMessage])
+      }, 60000) // 60秒 = 60000毫秒
+      
+      setTimeoutId(timeout)
+
       const interval = setInterval(async () => {
         try {
-          const response = await axios.get(`http://127.0.0.1:8012/api/crew/${currentJobId}`)
-          const { status, result } = response.data
+          const response = await crewAPI.getStatus(currentJobId)
+          const { status, result } = response
           
           if (status === 'COMPLETE') {
             setIsLoading(false)
             setCurrentJobId(null)
+            clearTimeout(timeout) // 清除超时定时器
             
             const botMessage = {
               id: Date.now(),
@@ -51,9 +218,16 @@ const ChatInterface = ({ user, onLogout }) => {
             }
             setMessages(prev => [...prev, botMessage])
             clearInterval(interval)
+            
+            // 保存机器人回复到会话
+            await saveMessageToSession('assistant', result)
+            
+            // 刷新会话列表以更新消息数量
+            await refreshSessionsList()
           } else if (status === 'ERROR') {
             setIsLoading(false)
             setCurrentJobId(null)
+            clearTimeout(timeout) // 清除超时定时器
             
             const errorMessage = {
               id: Date.now(),
@@ -69,68 +243,12 @@ const ChatInterface = ({ user, onLogout }) => {
         }
       }, 2000)
 
-      return () => clearInterval(interval)
+      return () => {
+        clearInterval(interval)
+        clearTimeout(timeout)
+      }
     }
   }, [currentJobId, isLoading])
-
-  // 录音功能
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        setRecordedAudio({ blob: audioBlob, url: audioUrl });
-        
-        // 停止所有音频轨道
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('无法访问麦克风:', error);
-      alert('无法访问麦克风，请检查权限设置');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const removeRecordedAudio = () => {
-    if (recordedAudio) {
-      URL.revokeObjectURL(recordedAudio.url);
-      setRecordedAudio(null);
-    }
-  };
-
-  // 图片上传功能
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setUploadedImage({ file, url: imageUrl });
-    }
-  };
-
-  const removeImage = () => {
-    if (uploadedImage) {
-      URL.revokeObjectURL(uploadedImage.url);
-      setUploadedImage(null);
-    }
-  };
-
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -152,6 +270,9 @@ const ChatInterface = ({ user, onLogout }) => {
     }
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
+    
+    // 保存用户消息到会话
+    await saveMessageToSession('user', userMessage.content)
 
     try {
       let response;
@@ -171,6 +292,7 @@ const ChatInterface = ({ user, onLogout }) => {
         formData.append('additional_context', '')
         formData.append('customer_domain', 'example.com')
         formData.append('project_description', finalInputValue || '多模态输入')
+        formData.append('session_id', currentSessionId || '')
 
         // 添加图片文件
         if (uploadedImage) {
@@ -182,320 +304,634 @@ const ChatInterface = ({ user, onLogout }) => {
           formData.append('audio', recordedAudio.blob, 'recording.wav')
         }
 
-        response = await axios.post('http://127.0.0.1:8012/api/crew', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
+        response = await crewAPI.sendFileMessage(formData)
       } else {
         // 处理JSON请求
-        response = await axios.post('http://127.0.0.1:8012/api/crew', {
+        response = await crewAPI.sendMessage({
           customer_input: finalInputValue,
           input_type: 'text',
           additional_context: '',
           customer_domain: 'example.com',
-          project_description: finalInputValue
+          project_description: finalInputValue,
+          session_id: currentSessionId || ''
         })
       }
 
-      setCurrentJobId(response.data.job_id)
+      setCurrentJobId(response.job_id)
       
       // 清除上传的文件
-      removeImage()
-      removeRecordedAudio()
+      setUploadedImage(null)
+      setRecordedAudio(null)
       setInputValue('')
-      
     } catch (error) {
       console.error('Error sending message:', error)
       setIsLoading(false)
-      
       const errorMessage = {
         id: Date.now(),
         type: 'bot',
-        content: '抱歉，发送消息时出现错误。请检查后端服务是否正常运行。',
+        content: '抱歉，发送消息时出现错误。请稍后重试。',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
     }
   }
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data)
+      }
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
+        const audioUrl = URL.createObjectURL(audioBlob)
+        setRecordedAudio({
+          blob: audioBlob,
+          url: audioUrl
+        })
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (error) {
+      console.error('Error starting recording:', error)
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setUploadedImage({
+          file: file,
+          url: e.target.result
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   return (
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      backgroundColor: '#f7f7f8'
+    <div style={{
+      height: '100vh',
+      display: 'flex',
+      backgroundColor: '#ffffff'
     }}>
-      {/* 头部 */}
-      <div style={{ 
-        background: 'white',
-        borderBottom: '1px solid #e5e7eb',
-        padding: '16px 24px',
+      {/* 侧边栏 */}
+      <div style={{
+        width: '260px',
+        backgroundColor: '#f7f7f8',
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        flexDirection: 'column',
+        borderRight: '1px solid #e5e5e5'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Bot size={24} />
-          <h1 style={{ margin: 0, color: '#1f2937' }}>智能客服机器人</h1>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <User size={20} />
-            <span>{user?.username || '用户'}</span>
-          </div>
-          <button onClick={onLogout} style={{ 
-            padding: '8px 16px',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
+        {/* 新对话按钮 */}
+        <div style={{ padding: '12px' }}>
+          <button 
+            className="new-chat-button"
+            onClick={createNewSession} style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: 'transparent',
+            color: '#374151',
+            border: '1px solid #e5e5e5',
+            borderRadius: '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
-          }}>
-            <LogOut size={16} />
-            退出
+            gap: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            <Plus size={16} />
+            New chat
           </button>
         </div>
-      </div>
 
-      {/* 消息区域 */}
-      <div style={{ 
-        flex: 1,
-        padding: '20px',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
-      }}>
-        {messages.map((message) => (
-          <div key={message.id} style={{
-            display: 'flex',
-            justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
-          }}>
-            <div style={{
-              maxWidth: '70%',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: message.type === 'user' ? '#3b82f6' : 'white',
-              color: message.type === 'user' ? 'white' : '#1f2937',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-            }}>
-              {message.content}
-              {message.attachments?.image && (
-                <div style={{ marginTop: '8px' }}>
-                  <img 
-                    src={message.attachments.image.url} 
-                    alt="上传的图片" 
-                    style={{ 
-                      maxWidth: '200px', 
-                      maxHeight: '200px', 
-                      borderRadius: '8px' 
-                    }} 
-                  />
-                </div>
-              )}
-              {message.attachments?.audio && (
-                <div style={{ marginTop: '8px' }}>
-                  <audio 
-                    controls 
-                    src={message.attachments.audio.url}
-                    style={{ maxWidth: '200px' }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start'
-          }}>
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'white',
-              color: '#1f2937',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-              正在思考中...
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* 文件预览 */}
-      {(uploadedImage || recordedAudio) && (
+        {/* 会话列表 */}
         <div style={{ 
-          padding: '0 20px',
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '0 12px',
           display: 'flex',
-          gap: '12px',
-          alignItems: 'center'
+          flexDirection: 'column',
+          gap: '4px'
         }}>
-          {uploadedImage && (
-            <>
-              <img 
-                src={uploadedImage.url} 
-                alt="图片预览" 
-                style={{ 
-                  width: '60px', 
-                  height: '60px', 
-                  objectFit: 'cover',
-                  borderRadius: '8px' 
-                }} 
-              />
-              <button 
-                onClick={removeImage}
-                style={{
-                  padding: '4px',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="移除图片"
-              >
-                <X size={16} />
-              </button>
-            </>
-          )}
-          {recordedAudio && (
-            <>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                backgroundColor: '#3b82f6',
+          
+          {sessions.map(session => (
+            <div
+              key={session.session_id}
+              onClick={() => loadSession(session.session_id)}
+              style={{
+                padding: '12px',
                 borderRadius: '8px',
+                backgroundColor: session.session_id === currentSessionId ? '#f3f4f6' : 'transparent',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                border: 'none',
+                color: '#374151',
+                textAlign: 'left',
+                fontSize: '14px',
+                lineHeight: '1.4',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                position: 'relative',
+                marginBottom: '2px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white'
-              }}>
-                <Mic size={24} />
+                justifyContent: 'space-between'
+              }}
+              onMouseEnter={(e) => {
+                if (session.session_id !== currentSessionId) {
+                  e.target.style.backgroundColor = '#f3f4f6'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (session.session_id !== currentSessionId) {
+                  e.target.style.backgroundColor = 'transparent'
+                }
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ 
+                  fontWeight: '500', 
+                  marginBottom: '2px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {session.title}
+                </div>
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#9ca3af',
+                  marginTop: '2px'
+                }}>
+                  {session.message_count || 0} 条消息
+                </div>
               </div>
-              <button 
-                onClick={removeRecordedAudio}
+              
+              {/* 删除按钮 */}
+              <button
+                onClick={(e) => deleteSession(session.session_id, e)}
                 style={{
-                  padding: '4px',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '4px',
+                  color: '#9ca3af',
                   cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'all 0.2s',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  opacity: 0.7
                 }}
-                title="移除录音"
+                onMouseEnter={(e) => {
+                  e.target.style.color = '#ef4444'
+                  e.target.style.backgroundColor = '#fef2f2'
+                  e.target.style.opacity = 1
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = '#9ca3af'
+                  e.target.style.backgroundColor = 'transparent'
+                  e.target.style.opacity = 0.7
+                }}
+                title="删除对话"
               >
-                <X size={16} />
+                <Trash2 size={14} />
               </button>
-            </>
-          )}
+            </div>
+          ))}
         </div>
-      )}
 
-      {/* 输入区域 */}
-      <form onSubmit={handleSubmit} style={{ 
-        padding: '20px',
-        background: 'white',
-        borderTop: '1px solid #e5e7eb'
-      }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="请输入您的问题..."
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '16px'
-            }}
-            disabled={isLoading}
-          />
-          {/* 图片上传按钮 */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              padding: '12px',
-              backgroundColor: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="上传图片"
-            disabled={isLoading}
+        {/* 用户信息 */}
+        <div style={{
+          padding: '12px',
+          borderTop: '1px solid #e5e5e5',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            backgroundColor: '#10a37f',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }}>
+            {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+          </div>
+          <div style={{ flex: 1, color: '#374151', fontSize: '14px', fontWeight: '500' }}>
+            {user?.username || 'User'}
+          </div>
+          <button onClick={onLogout} style={{
+            background: 'none',
+            border: 'none',
+            color: '#6b7280',
+            cursor: 'pointer',
+            padding: '4px',
+            borderRadius: '4px',
+            transition: 'color 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.color = '#374151'}
+          onMouseLeave={(e) => e.target.style.color = '#6b7280'}
           >
-            <Image size={20} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            style={{ display: 'none' }}
-          />
-          {/* 录音按钮 */}
-          <button
-            type="button"
-            onClick={isRecording ? stopRecording : startRecording}
-            style={{
-              padding: '12px',
-              backgroundColor: isRecording ? '#ef4444' : '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title={isRecording ? "停止录音" : "开始录音"}
-            disabled={isLoading}
-          >
-            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-          </button>
-          <button
-            type="submit"
-            style={{
-              padding: '12px 24px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            disabled={isLoading || (!inputValue.trim() && !uploadedImage && !recordedAudio)}
-          >
-            <Send size={16} />
-            发送
+            <LogOut size={16} />
           </button>
         </div>
-      </form>
+      </div>
+
+      {/* 主聊天区域 */}
+      <div style={{ 
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#ffffff'
+      }}>
+        {/* 消息区域 */}
+        <div style={{ 
+          flex: 1,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '0'
+        }}>
+          {messages.map((message) => (
+            <div key={message.id} style={{
+              display: 'flex',
+              justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start',
+              marginBottom: '0',
+              padding: '20px 0'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                maxWidth: '70%',
+                flexDirection: message.type === 'user' ? 'row-reverse' : 'row',
+                padding: '0 20px'
+              }}>
+                {/* 头像 */}
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: message.type === 'user' ? '#10a37f' : '#444654',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>
+                  {message.type === 'user' ? (user?.username?.charAt(0)?.toUpperCase() || 'U') : 'AI'}
+                </div>
+                
+                {/* 消息内容 */}
+                <div style={{
+                  backgroundColor: message.type === 'user' ? '#10a37f' : '#f7f7f8',
+                  color: message.type === 'user' ? 'white' : '#374151',
+                  padding: '12px 16px',
+                  borderRadius: '18px',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                  wordWrap: 'break-word',
+                  maxWidth: '100%'
+                }}>
+                  {message.content}
+                  {message.attachments?.image && (
+                    <div style={{ marginTop: '8px' }}>
+                      <img 
+                        src={message.attachments.image.url} 
+                        alt="上传的图片" 
+                        style={{ 
+                          maxWidth: '200px', 
+                          maxHeight: '200px', 
+                          borderRadius: '8px' 
+                        }} 
+                      />
+                    </div>
+                  )}
+                  {message.attachments?.audio && (
+                    <div style={{ marginTop: '8px' }}>
+                      <audio 
+                        controls 
+                        src={message.attachments.audio.url}
+                        style={{ maxWidth: '200px' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-start',
+              marginBottom: '0',
+              padding: '20px 0'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                padding: '0 20px'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: '#444654',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}>
+                  AI
+                </div>
+                <div style={{
+                  backgroundColor: '#f7f7f8',
+                  color: '#374151',
+                  padding: '12px 16px',
+                  borderRadius: '18px',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Loader2 size={16} className="animate-spin" />
+                  正在思考...
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* 输入区域 */}
+        <div style={{
+          padding: '24px',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '768px',
+            position: 'relative'
+          }}>
+            <form onSubmit={handleSubmit} style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'white',
+              borderRadius: '24px',
+              padding: '12px 16px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e5e7eb',
+              position: 'relative'
+            }}>
+              {/* 输入框 */}
+              <textarea
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Ask anything..."
+                style={{
+                  flex: 1,
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: '#1f2937',
+                  fontSize: '16px',
+                  lineHeight: '1.5',
+                  resize: 'none',
+                  minHeight: '24px',
+                  maxHeight: '120px',
+                  fontFamily: 'inherit',
+                  padding: '0',
+                  marginRight: '8px'
+                }}
+                disabled={isLoading}
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }
+                }}
+              />
+              
+              {/* 右侧按钮组 */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                marginLeft: '8px'
+              }}>
+                {/* 图片上传按钮 */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#e5e7eb'
+                    e.target.style.color = '#374151'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#f3f4f6'
+                    e.target.style.color = '#6b7280'
+                  }}
+                  disabled={isLoading}
+                >
+                  <Image size={16} />
+                </button>
+                
+                {/* 语音录制按钮 */}
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: isRecording ? '#ef4444' : '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    color: isRecording ? 'white' : '#6b7280',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isRecording) {
+                      e.target.style.backgroundColor = '#e5e7eb'
+                      e.target.style.color = '#374151'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isRecording) {
+                      e.target.style.backgroundColor = '#f3f4f6'
+                      e.target.style.color = '#6b7280'
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                </button>
+                
+                {/* 发送按钮 */}
+                <button
+                  type="submit"
+                  disabled={(!inputValue.trim() && !uploadedImage && !recordedAudio) || isLoading}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: isLoading ? '#9ca3af' : '#10a37f',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    color: 'white',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && (inputValue.trim() || uploadedImage || recordedAudio)) {
+                      e.target.style.backgroundColor = '#059669'
+                      e.target.style.transform = 'scale(1.05)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isLoading && (inputValue.trim() || uploadedImage || recordedAudio)) {
+                      e.target.style.backgroundColor = '#10a37f'
+                      e.target.style.transform = 'scale(1)'
+                    }
+                  }}
+                >
+                  {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                </button>
+              </div>
+            </form>
+          
+          {/* 文件预览 */}
+          {(uploadedImage || recordedAudio) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '12px',
+              padding: '8px 12px',
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+              maxWidth: '768px',
+              margin: '12px auto 0'
+            }}>
+              {uploadedImage && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Image size={16} color="#6b7280" />
+                  <span style={{ color: '#374151', fontSize: '14px' }}>
+                    {uploadedImage.file.name}
+                  </span>
+                  <button
+                    onClick={() => setUploadedImage(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#fef2f2'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+              {recordedAudio && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Mic size={16} color="#6b7280" />
+                  <span style={{ color: '#374151', fontSize: '14px' }}>
+                    录音文件
+                  </span>
+                  <button
+                    onClick={() => setRecordedAudio(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#fef2f2'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          </div>
+        </div>
+      </div>
+
+      {/* 隐藏的文件输入 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        style={{ display: 'none' }}
+      />
     </div>
   )
 }

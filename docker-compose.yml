@@ -1,0 +1,152 @@
+services:
+  # AI Agent MySQL数据库
+  backend-mysql:
+    image: mysql:8.0
+    container_name: backend-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: aiagent_chat
+    ports:
+      - "3307:3306"  # 保持端口3307不变，这是AI Agent的独立数据库
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    networks:
+      - aiagent-net
+    profiles:
+      - aiagent
+
+  # RAGFlow MySQL数据库
+  ragflow-mysql:
+    image: mysql:8.0.39
+    container_name: ragflow-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ragflow
+    ports:
+      - "5455:3306"
+    volumes:
+      - ./ragflow_mysql_data:/var/lib/mysql
+    networks:
+      - aiagent-net
+
+  # RAGFlow MinIO对象存储
+  ragflow-minio:
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    container_name: ragflow-minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./ragflow_minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - aiagent-net
+
+  # RAGFlow Elasticsearch
+  ragflow-es-01:
+    image: elasticsearch:8.11.3
+    container_name: ragflow-es-01
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ports:
+      - "1200:9200"
+    volumes:
+      - ./ragflow_es_data:/usr/share/elasticsearch/data
+    networks:
+      - aiagent-net
+
+  # RAGFlow Redis
+  ragflow-redis:
+    image: valkey/valkey:8
+    container_name: ragflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./ragflow_redis_data:/data
+    networks:
+      - aiagent-net
+
+  # RAGFlow服务器
+  ragflow-server:
+    image: infiniflow/ragflow:v0.21.0-slim
+    container_name: ragflow-server
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "5678:5678"
+      - "5679:5679"
+      - "9380:9380"
+      - "9381:9381"
+      - "9382:9382"
+    volumes:
+      - ./ragflow_data:/ragflow
+    environment:
+      - MYSQL_HOST=ragflow-mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=ragflow
+      - REDIS_HOST=ragflow-redis
+      - REDIS_PORT=6379
+      - ELASTICSEARCH_HOST=ragflow-es-01
+      - ELASTICSEARCH_PORT=9200
+      - MINIO_ENDPOINT=ragflow-minio:9000
+      - MINIO_ACCESS_KEY=root
+      - MINIO_SECRET_KEY=password
+    depends_on:
+      - ragflow-mysql
+      - ragflow-minio
+      - ragflow-es-01
+      - ragflow-redis
+    networks:
+      - aiagent-net
+
+  # Ollama本地LLM服务
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    networks:
+      - aiagent-net
+
+  # AI Agent后端服务
+  aiagent-backend:
+    build:
+      context: ./crewaiBackend
+      dockerfile: Dockerfile
+    container_name: aiagent-backend
+    restart: always
+    ports:
+      - "8012:8012"
+    environment:
+      - MYSQL_HOST=backend-mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root123
+      - MYSQL_DATABASE=aiagent_chat
+      - RAGFLOW_BASE_URL=http://ragflow-server:80
+    depends_on:
+      - backend-mysql
+    networks:
+      - aiagent-net
+    profiles:
+      - aiagent
+
+networks:
+  aiagent-net:
+    driver: bridge
