@@ -1,0 +1,29 @@
+name: Status Badges
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-badges:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate status badges
+      run: |
+        echo "## CI/CD Status Badges" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Add these badges to your README.md:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### GitHub Actions" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`markdown" >> $GITHUB_STEP_SUMMARY
+        echo "[![CI/CD Pipeline](https://github.com/${{ github.repository }}/workflows/AI%20Agent%20CI/CD%20Pipeline/badge.svg)](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`markdown" >> $GITHUB_STEP_SUMMARY
+        echo "[![codecov](https://codecov.io/gh/${{ github.repository }}/branch/main/graph/badge.svg)](https://codecov.io/gh/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Docker" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`markdown" >> $GITHUB_STEP_SUMMARY
+        echo "[![Docker](https://img.shields.io/docker/build/${{ github.repository }})](https://hub.docker.com/r/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
