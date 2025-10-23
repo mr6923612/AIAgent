@@ -13,22 +13,28 @@ class TestRAGFlowIntegration:
     def test_ragflow_create_session(self, mock_post):
         """测试RAGFlow创建会话"""
         mock_response = Mock()
-        mock_response.json.return_value = {"session_id": "ragflow_session_123"}
+        mock_response.json.return_value = {
+            "code": 0,
+            "data": {"id": "ragflow_session_123"}
+        }
         mock_response.status_code = 200
         mock_post.return_value = mock_response
         
         from utils.ragflow_client import RAGFlowClient
         client = RAGFlowClient()
-        result = client.create_session()
+        result = client.create_session(chat_id="test_chat", name="Test Session")
         
-        assert result["session_id"] == "ragflow_session_123"
+        assert result["id"] == "ragflow_session_123"
         mock_post.assert_called_once()
     
     @patch('utils.ragflow_client.requests.post')
     def test_ragflow_converse(self, mock_post):
         """测试RAGFlow对话"""
         mock_response = Mock()
-        mock_response.json.return_value = {"response": "RAGFlow response"}
+        mock_response.json.return_value = {
+            "code": 0,
+            "data": {"response": "RAGFlow response"}
+        }
         mock_response.status_code = 200
         mock_post.return_value = mock_response
         
@@ -43,13 +49,16 @@ class TestRAGFlowIntegration:
     def test_ragflow_delete_session(self, mock_delete):
         """测试RAGFlow删除会话"""
         mock_response = Mock()
-        mock_response.json.return_value = {"success": True}
+        mock_response.json.return_value = {
+            "code": 0,
+            "data": {"success": True}
+        }
         mock_response.status_code = 200
         mock_delete.return_value = mock_response
         
         from utils.ragflow_client import RAGFlowClient
         client = RAGFlowClient()
-        result = client.delete_session("ragflow_session_123")
+        result = client.delete_session(chat_id="test_chat", session_id="ragflow_session_123")
         
         assert result["success"] is True
         mock_delete.assert_called_once()
@@ -66,7 +75,7 @@ class TestRAGFlowIntegration:
         client = RAGFlowClient()
         
         with pytest.raises(Exception):
-            client.create_session()
+            client.create_session(chat_id="test_chat", name="Test Session")
     
     @patch('utils.ragflow_client.requests.post')
     def test_ragflow_network_timeout(self, mock_post):
@@ -77,7 +86,7 @@ class TestRAGFlowIntegration:
         client = RAGFlowClient()
         
         with pytest.raises(requests.exceptions.Timeout):
-            client.create_session()
+            client.create_session(chat_id="test_chat", name="Test Session")
     
     @patch('utils.ragflow_client.requests.post')
     def test_ragflow_retry_mechanism(self, mock_post):
@@ -87,14 +96,17 @@ class TestRAGFlowIntegration:
         mock_response_fail.status_code = 500
         
         mock_response_success = Mock()
-        mock_response_success.json.return_value = {"session_id": "ragflow_session_123"}
+        mock_response_success.json.return_value = {
+            "code": 0,
+            "data": {"id": "ragflow_session_123"}
+        }
         mock_response_success.status_code = 200
         
         mock_post.side_effect = [mock_response_fail, mock_response_success]
         
         from utils.ragflow_client import RAGFlowClient
         client = RAGFlowClient()
-        result = client.create_session()
+        result = client.create_session(chat_id="test_chat", name="Test Session")
         
-        assert result["session_id"] == "ragflow_session_123"
+        assert result["id"] == "ragflow_session_123"
         assert mock_post.call_count == 2  # 重试了一次

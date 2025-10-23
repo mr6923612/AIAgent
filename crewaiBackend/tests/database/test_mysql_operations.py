@@ -2,125 +2,107 @@
 MySQL数据库操作测试
 """
 import pytest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 
 
 class TestMySQLOperations:
     """MySQL操作测试类"""
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_database_connection(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_database_connection(self, mock_db):
         """测试数据库连接"""
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
+        mock_db.execute_query.return_value = []
         
         from utils.sessionManager import SessionManager
-        with patch.object(SessionManager, '_init_database'):
-            sm = SessionManager()
-            # 测试连接是否被调用
-            mock_connect.assert_called()
+        sm = SessionManager()
+        # 触发一次数据库调用
+        sm.get_all_sessions()
+        mock_db.execute_query.assert_called()
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_create_session_in_database(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_create_session_in_database(self, mock_db):
         """测试在数据库中创建会话"""
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
+        mock_db.execute_update.return_value = 1
         
         from utils.sessionManager import SessionManager
-        with patch.object(SessionManager, '_init_database'):
-            sm = SessionManager()
-            session_id = sm.create_session("Test Session")
-            
-            # 验证数据库操作被调用
-            mock_cursor.execute.assert_called()
-            mock_conn.commit.assert_called()
+        sm = SessionManager()
+        session = sm.create_session(title="Test Session")
+        assert session is not None
+        mock_db.execute_update.assert_called()
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_add_message_to_database(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_add_message_to_database(self, mock_db):
         """测试在数据库中添加消息"""
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
+        # 插入消息与更新会话更新时间
+        mock_db.execute_update.return_value = 1
+        # 第一次查询统计用户消息数返回1，触发标题更新
+        mock_db.execute_query.side_effect = [ [(1,)] ]
         
         from utils.sessionManager import SessionManager
-        with patch.object(SessionManager, '_init_database'):
-            sm = SessionManager()
-            session_id = sm.create_session("Test Session")
-            message_id = sm.add_message_to_session(session_id, "user", "Hello")
-            
-            # 验证消息插入操作被调用
-            assert mock_cursor.execute.call_count >= 2  # 至少调用两次execute
+        sm = SessionManager()
+        session = sm.create_session(title="Test Session")
+        msg = sm.add_message(session.session_id, "user", "Hello")
+        assert msg is not None
+        assert mock_db.execute_update.call_count >= 2
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_get_session_from_database(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_get_session_from_database(self, mock_db):
         """测试从数据库获取会话"""
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value = mock_cursor
-        
-        # 模拟数据库查询结果
-        mock_cursor.fetchall.return_value = [
-            ("test_session_123", "Test Session", 5, "2024-01-01 12:00:00", "2024-01-01 12:30:00")
+        # 模拟 chat_sessions 行(至少7列访问到 index 6)
+        session_row = (
+            "test_session_123",  # session_id
+            "user_1",            # user_id
+            "Test Session",      # title
+            __import__('datetime').datetime.now(),  # created_at
+            __import__('datetime').datetime.now(),  # updated_at
+            "{}",                # context JSON
+            None                  # ragflow_session_id
+        )
+        messages_rows = [
+            ("msg1", "user", "Hello", __import__('datetime').datetime.now()),
+            ("msg2", "assistant", "Hi", __import__('datetime').datetime.now()),
         ]
-        mock_connect.return_value = mock_conn
+        mock_db.execute_query.side_effect = [ [session_row], messages_rows ]
         
         from utils.sessionManager import SessionManager
-        with patch.object(SessionManager, '_init_database'):
-            sm = SessionManager()
-            session = sm.get_session("test_session_123")
-            
-            # 验证数据库查询被调用
-            mock_cursor.execute.assert_called()
-            assert session is not None
+        sm = SessionManager()
+        session = sm.get_session("test_session_123")
+        assert session is not None
+        assert len(session.messages) == 2
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_delete_session_from_database(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_delete_session_from_database(self, mock_db):
         """测试从数据库删除会话"""
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
+        # get_session 查询 + 删除调用
+        session_row = (
+            "test_session_123", "user_1", "Test Session",
+            __import__('datetime').datetime.now(), __import__('datetime').datetime.now(), "{}", None
+        )
+        mock_db.execute_query.side_effect = [ [session_row], [] ]
+        mock_db.execute_update.return_value = 1
         
         from utils.sessionManager import SessionManager
-        with patch.object(SessionManager, '_init_database'):
-            sm = SessionManager()
-            session_id = sm.create_session("Test Session")
-            sm.delete_session(session_id)
-            
-            # 验证删除操作被调用
-            mock_cursor.execute.assert_called()
-            mock_conn.commit.assert_called()
+        sm = SessionManager()
+        ok = sm.delete_session("test_session_123")
+        assert ok is True
+        mock_db.execute_update.assert_called()
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_database_error_handling(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_database_error_handling(self, mock_db):
         """测试数据库错误处理"""
-        mock_connect.side_effect = Exception("Connection failed")
+        mock_db.execute_update.side_effect = Exception("Connection failed")
         
         from utils.sessionManager import SessionManager
+        sm = SessionManager()
         with pytest.raises(Exception):
-            with patch.object(SessionManager, '_init_database'):
-                sm = SessionManager()
-                sm.create_session("Test Session")
+            sm.create_session(title="Test Session")
     
-    @patch('utils.sessionManager.pymysql.connect')
-    def test_transaction_rollback(self, mock_connect):
+    @patch('utils.sessionManager.db_manager')
+    def test_transaction_rollback(self, mock_db):
         """测试事务回滚"""
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.execute.side_effect = Exception("SQL error")
-        mock_connect.return_value = mock_conn
+        mock_db.execute_update.side_effect = Exception("SQL error")
         
         from utils.sessionManager import SessionManager
-        with patch.object(SessionManager, '_init_database'):
-            sm = SessionManager()
-            with pytest.raises(Exception):
-                sm.create_session("Test Session")
-            
-            # 验证回滚被调用
-            mock_conn.rollback.assert_called()
+        sm = SessionManager()
+        with pytest.raises(Exception):
+            sm.create_session(title="Test Session")

@@ -4,6 +4,7 @@ CrewAI API测试
 import pytest
 import json
 from unittest.mock import patch, Mock
+import io
 
 
 class TestCrewAPI:
