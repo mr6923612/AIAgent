@@ -102,25 +102,18 @@ class TestSessionManager:
     
     def test_get_all_sessions(self, session_manager):
         """测试获取所有会话"""
-        # Mock 数据库查询结果 - 需要完整的会话行数据
-        session_row1 = (
-            "session1", "user_1", "Session 1",
-            __import__('datetime').datetime.now(), __import__('datetime').datetime.now(), "{}", None
-        )
-        session_row2 = (
-            "session2", "user_1", "Session 2", 
-            __import__('datetime').datetime.now(), __import__('datetime').datetime.now(), "{}", None
-        )
+        # Mock 数据库查询结果 - 只返回会话ID列表
+        session_manager.db.execute_query.return_value = [("session1",), ("session2",)]
         
-        # 第一次查询返回会话ID列表，后续查询返回会话详情
-        session_manager.db.execute_query.side_effect = [
-            [("session1",), ("session2",)],  # get_all_sessions 的查询
-            [session_row1, []],  # get_session("session1") 的查询
-            [session_row2, []]   # get_session("session2") 的查询
-        ]
-        
-        sessions = session_manager.get_all_sessions()
-        assert len(sessions) == 2
+        # Mock get_session 方法
+        with patch.object(session_manager, 'get_session') as mock_get_session:
+            mock_session1 = Mock()
+            mock_session2 = Mock()
+            mock_get_session.side_effect = [mock_session1, mock_session2]
+            
+            sessions = session_manager.get_all_sessions()
+            assert len(sessions) == 2
+            assert mock_get_session.call_count == 2
     
     def test_delete_session(self, session_manager):
         """测试删除会话"""

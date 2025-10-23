@@ -291,27 +291,20 @@ make deploy
 
 ### 测试类型
 - **单元测试** - 测试各个模块的独立功能
-- **集成测试** - 测试模块间的交互
-- **API测试** - 测试Flask API接口
 - **数据库测试** - 测试MySQL数据库操作
-- **外部服务测试** - 测试RAGFlow、Gemini等外部服务集成
 
 ### 运行测试
 ```bash
 # 使用Makefile（推荐）
-make test             # 运行所有测试
-make test-unit        # 运行单元测试
-make test-integration # 运行集成测试
-make test-api         # 运行API测试
+make test             # 运行所有基本功能测试
 make test-coverage    # 运行测试并生成覆盖率报告
 
 # 直接使用pytest
 cd crewaiBackend
 python -m pytest tests/ -v                    # 运行所有测试
 python -m pytest tests/unit/ -v               # 运行单元测试
-python -m pytest tests/integration/ -v        # 运行集成测试
-python -m pytest tests/api/ -v                # 运行API测试
-python -m pytest tests/ --cov=crewaiBackend   # 运行测试并生成覆盖率报告
+python -m pytest tests/database/ -v           # 运行数据库测试
+python -m pytest tests/ --cov=. --cov-report=html   # 运行测试并生成覆盖率报告
 ```
 
 ### 测试配置

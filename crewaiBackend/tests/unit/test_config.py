@@ -34,7 +34,7 @@ class TestConfig:
     def test_config_types(self):
         """测试配置类型"""
         assert isinstance(config.MYSQL_PORT, int)
-        assert isinstance(config.PORT, int)  # 使用PORT而不是FLASK_PORT
+        assert isinstance(config.PORT, int)
         assert isinstance(config.GOOGLE_API_KEY, str)
         assert isinstance(config.RAGFLOW_BASE_URL, str)
         assert isinstance(config.MYSQL_HOST, str)

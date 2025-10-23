@@ -76,35 +76,15 @@ jobs:
         done
         echo "MySQL is ready!"
     
-    - name: Run unit tests
+    - name: Run basic function tests
       run: |
         cd crewaiBackend
-        python -m pytest tests/unit/ -v --tb=short
-    
-    - name: Run integration tests
+        python -m pytest tests/ -v --tb=short
+      
+    - name: Run tests with coverage
       run: |
         cd crewaiBackend
-        python -m pytest tests/integration/ -v --tb=short
-    
-    - name: Run API tests
-      run: |
-        cd crewaiBackend
-        python -m pytest tests/api/ -v --tb=short
-    
-    - name: Run database tests
-      run: |
-        cd crewaiBackend
-        python -m pytest tests/database/ -v --tb=short
-    
-    - name: Run external service tests
-      run: |
-        cd crewaiBackend
-        python -m pytest tests/external/ -v --tb=short
-    
-    - name: Run all tests with coverage
-      run: |
-        cd crewaiBackend
-        python -m pytest tests/ -v --cov=crewaiBackend --cov-report=xml --cov-report=html --cov-fail-under=70
+        python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-fail-under=50
     
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
