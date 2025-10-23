@@ -121,7 +121,7 @@ class SessionManager:
         # 如果提供了RAGFlow客户端，创建RAGFlow会话
         if ragflow_client:
             try:
-                from utils.ragflow_client import DEFAULT_CHAT_ID
+                from .ragflow_client import DEFAULT_CHAT_ID
                 session_data = ragflow_client.create_session(
                     chat_id=DEFAULT_CHAT_ID,
                     name=title,
@@ -293,7 +293,7 @@ class SessionManager:
     def _delete_ragflow_session(self, ragflow_client, ragflow_session_id: str) -> bool:
         """删除RAGFlow会话"""
         try:
-            from utils.ragflow_client import DEFAULT_CHAT_ID
+            from .ragflow_client import DEFAULT_CHAT_ID
             ragflow_client.delete_session(
                 chat_id=DEFAULT_CHAT_ID,
                 session_id=ragflow_session_id

@@ -14,32 +14,28 @@
 - 🐳 **容器化** - 完整的Docker容器化部署
 - 🔄 **CI/CD** - GitHub Actions自动化测试和部署流程
 
-## 🌐 服务端口和URL
+## 🌐 服务架构
 
 ### 📋 服务概览
-| 服务类型 | 服务名称 | 端口 | 访问地址 | 状态 |
+| 服务类型 | 服务名称 | 端口 | 访问地址 | 用途 |
 |---------|---------|------|----------|------|
-| **前端应用** | aiagent-frontend | 3000 | http://localhost:3000 |
-| **后端API** | aiagent-backend | 8012 | http://localhost:8012 | 
-| **RAGFlow Web** | ragflow-server | 80 | http://localhost:80 | 
-| **RAGFlow API** | ragflow-server | 9380 | http://localhost:9380 | 
+| **前端应用** | aiagent-frontend | 3000 | http://localhost:3000 | React前端界面 |
+| **后端API** | aiagent-backend | 8012 | http://localhost:8012 | Flask后端服务 |
+| **RAGFlow Web** | ragflow-server | 80 | http://localhost:80 | 知识库管理界面 |
+| **RAGFlow API** | ragflow-server | 9380 | http://localhost:9380 | 知识检索API |
 
-### 🗄️ 数据库服务
+### 🗄️ 数据库和存储服务
 | 服务名称 | 端口 | 连接信息 | 用途 |
 |---------|------|----------|------|
 | **AI Agent MySQL** | 3307 | `localhost:3307` | AI Agent专用数据库 |
 | **RAGFlow MySQL** | 5455 | `localhost:5455` | RAGFlow专用数据库 |
 | **RAGFlow Redis** | 6379 | `localhost:6379` | RAGFlow缓存服务 |
-
-### 💾 存储和搜索服务
-| 服务名称 | 端口 | 访问地址 | 用途 |
-|---------|------|----------|------|
 | **MinIO控制台** | 9001 | http://localhost:9001 | 对象存储管理界面 |
 | **MinIO API** | 9000 | http://localhost:9000 | 对象存储API |
 | **Elasticsearch** | 1200 | http://localhost:1200 | 搜索引擎服务 |
 | **Ollama LLM** | 11434 | http://localhost:11434 | 本地LLM服务 |
 
-### 🔌 API端点
+### 🔌 API接口
 
 #### 后端API (http://localhost:8012)
 | 端点 | 方法 | 描述 | 示例 |
@@ -57,14 +53,6 @@
 | `/api/v1/chats` | GET | 获取聊天列表 |
 | `/api/v1/chats/{id}/sessions` | POST | 创建新会话 |
 | `/api/v1/chats/{id}/messages` | POST | 发送消息 |
-
-### 🚀 快速访问
-- **前端界面**: http://localhost:3000
-- **后端API**: http://localhost:8012
-- **RAGFlow管理**: http://localhost:80
-- **MinIO控制台**: http://localhost:9001 (root/password)
-- **Elasticsearch**: http://localhost:1200
-- **Ollama**: http://localhost:11434
 
 ### 📊 服务依赖关系
 ```
@@ -202,26 +190,37 @@ AIAgent/
 ├── crewaiBackend/          # 后端服务
 │   ├── main.py            # 主应用入口
 │   ├── crew.py            # CrewAI配置
+│   ├── config.py          # 配置管理
+│   ├── constants.py       # 常量定义
 │   ├── utils/             # 工具模块
-│   ├── tests/             # 测试文件
+│   │   ├── database.py    # 数据库操作
+│   │   ├── jobManager.py  # 任务管理
+│   │   ├── logger.py      # 日志管理
+│   │   ├── myLLM.py       # LLM配置
+│   │   ├── ragflow_client.py # RAGFlow客户端
+│   │   ├── sessionManager.py # 会话管理
+│   │   └── session_agent_manager.py # 会话代理管理
+│   ├── scripts/           # 后端脚本
 │   └── Dockerfile         # 后端Docker配置
 ├── crewaiFrontend/         # 前端服务
 │   ├── src/               # React源码
 │   ├── public/            # 静态资源
 │   └── Dockerfile         # 前端Docker配置
+├── tests/                  # 测试文件
+│   ├── conftest.py        # 测试配置
+│   ├── unit/              # 单元测试
+│   └── database/          # 数据库测试
 ├── .github/workflows/      # CI/CD配置
-│   ├── ci.yml            # 主CI/CD流程
-│   └── status-badges.yml  # 状态徽章
-├── scripts/               # 部署脚本
-│   └── deploy-to-github.sh # GitHub部署脚本
+│   └── ci.yml            # 主CI/CD流程
 ├── docker-compose.yml     # Docker Compose配置
+├── quick-start.sh         # 一键启动脚本
 ├── Makefile              # 项目管理命令
 └── README.md             # 项目说明
 ```
 
 ## 🔧 配置说明
 
-### 环境变量
+### 环境变量配置
 
 编辑 `crewaiBackend/.env` 文件：
 
@@ -236,7 +235,7 @@ RAGFLOW_CHAT_ID=your_ragflow_chat_id_here
 
 # MySQL 数据库配置
 MYSQL_HOST=localhost
-MYSQL_PORT=3306
+MYSQL_PORT=3307  # 本地开发环境使用3307端口（Docker映射）
 MYSQL_USER=root
 MYSQL_PASSWORD=root123
 MYSQL_DATABASE=aiagent_chat
@@ -247,11 +246,8 @@ FLASK_DEBUG=False
 PORT=8012
 ```
 
-### 端口配置
+> **注意**：首次运行时会自动创建环境变量文件，请根据提示配置必要的 API 密钥。
 
-- **前端**: 3000
-- **后端**: 8012
-- **MySQL**: 3307
 
 ## 🔄 CI/CD 流程
 
@@ -314,91 +310,39 @@ python -m pytest tests/ --cov=. --cov-report=html   # 运行测试并生成覆�
 
 ### 测试目录结构
 ```
-crewaiBackend/tests/
+tests/
 ├── conftest.py              # 测试配置和共享夹具
-├── unit/                    # 单元测试
-│   ├── test_config.py       # 配置模块测试 (4个测试)
-│   └── test_session_manager.py # 会话管理器测试 (11个测试)
-└── database/                # 数据库测试
-    └── test_mysql_operations.py # MySQL数据库操作测试 (7个测试)
+├── unit/                    # 单元测试 (44个测试)
+│   ├── test_api_connectivity.py      # API连通性测试
+│   ├── test_basic_functionality.py   # 基本功能测试
+│   ├── test_config.py               # 配置模块测试
+│   ├── test_frontend_backend_integration.py # 前后端集成测试
+│   └── test_session_manager.py      # 会话管理器测试
+└── database/                # 数据库测试 (7个测试)
+    └── test_mysql_operations.py # MySQL数据库操作测试
 ```
+
+### 测试覆盖范围
+
+#### 单元测试 (44个)
+- **API连通性测试** - 健康检查、会话状态、路由注册验证
+- **基本功能测试** - 配置加载、数据库连接、会话管理、任务管理
+- **配置模块测试** - 配置加载、默认值、环境变量加载
+- **前后端集成测试** - 会话管理流程、聊天消息流程、AI响应流程
+- **会话管理器测试** - 聊天消息、聊天会话、会话管理器
+
+#### 数据库测试 (7个)
+- **MySQL操作测试** - 数据库连接、会话CRUD、错误处理、事务回滚
 
 ### CI/CD集成
 测试已集成到GitHub Actions中，每次代码推送都会自动运行：
-- 单元测试 (配置模块、会话管理器)
-- 数据库测试 (MySQL操作)
-- 代码覆盖率检查 (阈值30%)
-- 基本语法检查
-- 基本安全检查
+- **测试阶段** - 运行所有测试用例 (50个测试)
+- **构建阶段** - 构建Docker镜像
+- **安全检查** - 运行安全扫描
+- **代码检查** - 运行代码质量检查
+- **覆盖率检查** - 代码覆盖率阈值30%
 
-## 🚨 故障排除
 
-### 常见问题
-
-#### 1. 服务启动失败
-```bash
-# 检查服务状态
-make status
-
-# 查看详细日志
-make logs
-
-# 重启服务
-make restart
-```
-
-#### 2. 数据库连接失败
-```bash
-# 检查数据库状态
-make logs-mysql
-
-# 进入数据库Shell
-make db-shell
-```
-
-#### 3. 端口冲突
-```bash
-# 检查端口占用
-netstat -tulpn | grep :3000
-netstat -tulpn | grep :8012
-```
-
-### 性能优化
-
-#### 1. 内存优化
-```bash
-# 查看内存使用
-docker stats
-
-# 限制容器内存
-# 在docker-compose.yml中添加：
-# deploy:
-#   resources:
-#     limits:
-#       memory: 1G
-```
-
-#### 2. 数据库优化
-```bash
-# 进入数据库
-make db-shell
-
-# 创建索引
-CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id);
-CREATE INDEX idx_chat_messages_session_id ON chat_messages(session_id);
-```
-
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
 
 ## 📁 数据文件夹结构
 
@@ -420,39 +364,7 @@ data/
     └── id_ed25519.pub   # SSH公钥
 ```
 
-### 🔧 Docker卷映射配置
-
-```yaml
-# AI Agent MySQL
-volumes:
-  - ./data/aiagent/mysql:/var/lib/mysql
-
-# RAGFlow MySQL
-volumes:
-  - ./data/ragflow/mysql:/var/lib/mysql
-
-# RAGFlow MinIO
-volumes:
-  - ./data/ragflow/minio:/data
-
-# RAGFlow Elasticsearch
-volumes:
-  - ./data/ragflow/elasticsearch:/usr/share/elasticsearch/data
-
-# RAGFlow Redis
-volumes:
-  - ./data/ragflow/redis:/data
-
-# RAGFlow App
-volumes:
-  - ./data/ragflow/app:/ragflow
-
-# Ollama
-volumes:
-  - ./data/ollama:/root/.ollama
-```
-
-### 🎯 数据管理优势
+### 数据管理优势
 
 - **统一管理**: 所有数据文件集中存储
 - **分类清晰**: 按服务类型组织数据
@@ -518,13 +430,20 @@ docker-compose exec backend-mysql mysql -u root -proot123 -e "SELECT 1;"
 3. **资源要求**: 建议至少4GB内存和2GB可用磁盘空间
 4. **网络隔离**: 所有服务都在 `aiagent-net` 网络中，确保容器间通信正常
 
+
+
+## 🧹 清理RAGFlow会话
+
+```bash
+# 清理RAGFlow中的所有会话
+python cleanup_ragflow_sessions.py
+```
+
+**注意**: 需要先设置环境变量 `RAGFLOW_API_KEY`
+
 ## 🆘 获取帮助
 
 - 查看所有可用命令: `make help`
 - 查看项目信息: `make info`
 - 查看版本信息: `make version`
 - 详细健康检查: `make health-detailed`
-
----
-
-**🎉 开始使用AI Agent，享受智能对话的乐趣！**

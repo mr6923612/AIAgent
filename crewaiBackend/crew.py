@@ -3,8 +3,8 @@
 # 使用RAGFlow替换CrewAI内置RagTool
 
 from crewai import Agent, Crew, Process
-from utils.jobManager import append_event
-from utils.ragflow_client import create_ragflow_client, DEFAULT_CHAT_ID
+from .utils.jobManager import append_event
+from .utils.ragflow_client import create_ragflow_client, DEFAULT_CHAT_ID
 import json
 import os
 import requests

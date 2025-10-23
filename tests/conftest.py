@@ -11,11 +11,21 @@ from flask import Flask
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from main import app
-from config import config
-from utils.sessionManager import SessionManager
-from utils.ragflow_client import RAGFlowClient
-from utils.session_agent_manager import SessionAgentManager
+# 使用Mock避免真实的API调用
+import unittest.mock as mock
+
+# Mock所有外部依赖
+with mock.patch.dict('os.environ', {
+    'GOOGLE_API_KEY': 'test_key',
+    'RAGFLOW_BASE_URL': 'http://localhost:80',
+    'RAGFLOW_API_KEY': 'test_key',
+    'RAGFLOW_CHAT_ID': 'test_chat_id'
+}):
+    from crewaiBackend.main import app
+    from crewaiBackend.config import config
+    from crewaiBackend.utils.sessionManager import SessionManager
+    from crewaiBackend.utils.ragflow_client import RAGFlowClient
+    from crewaiBackend.utils.session_agent_manager import SessionAgentManager
 
 
 @pytest.fixture(scope="session")

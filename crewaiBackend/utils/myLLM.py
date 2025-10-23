@@ -3,7 +3,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 导入配置
 try:
-    from config import config
+    from ..config import config
     GOOGLE_CHAT_MODEL = config.LLM_MODEL
     GOOGLE_CHAT_API_KEY = config.GOOGLE_API_KEY
     LLM_TEMPERATURE = config.LLM_TEMPERATURE

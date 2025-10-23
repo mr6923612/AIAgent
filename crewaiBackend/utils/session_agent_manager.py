@@ -12,8 +12,8 @@ from datetime import datetime
 import logging
 
 from crewai import Agent, Crew, Process
-from utils.myLLM import my_llm
-from utils.ragflow_client import create_ragflow_client, DEFAULT_CHAT_ID
+from .myLLM import my_llm
+from .ragflow_client import create_ragflow_client, DEFAULT_CHAT_ID
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@
 """
 import pytest
 from unittest.mock import Mock, patch
-from utils.sessionManager import SessionManager, ChatSession, ChatMessage
+from crewaiBackend.utils.sessionManager import SessionManager, ChatSession, ChatMessage
 
 
 class TestChatMessage:
@@ -58,7 +58,7 @@ class TestSessionManager:
     @pytest.fixture
     def session_manager(self):
         """会话管理器夹具"""
-        with patch('utils.sessionManager.db_manager') as mock_db:
+        with patch('crewaiBackend.utils.sessionManager.db_manager') as mock_db:
             mock_db.execute_update.return_value = 1
             mock_db.execute_query.return_value = []
             return SessionManager()

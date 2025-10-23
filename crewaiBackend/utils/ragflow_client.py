@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, Generator
 
 # 导入配置
 try:
-    from config import config
+    from ..config import config
     DEFAULT_CHAT_ID = config.RAGFLOW_CHAT_ID
     DEFAULT_BASE_URL = config.RAGFLOW_BASE_URL
     DEFAULT_API_KEY = config.RAGFLOW_API_KEY

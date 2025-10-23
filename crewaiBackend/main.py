@@ -58,12 +58,11 @@ except ImportError:
     LLM_TYPE = "google"
     PORT = 8012
 
-from crew import CrewtestprojectCrew
-from utils.jobManager import append_event, jobs, jobs_lock, Event
-from utils.myLLM import my_llm
-from utils.speech_to_text import speech_converter
-from utils.sessionManager import SessionManager
-from utils.session_agent_manager import session_agent_manager
+from .crew import CrewtestprojectCrew
+from .utils.jobManager import append_event, jobs, jobs_lock, Event
+from .utils.myLLM import my_llm
+from .utils.sessionManager import SessionManager
+from .utils.session_agent_manager import session_agent_manager
 
 
 # 创建Flask应用实例
@@ -129,19 +128,9 @@ def process_file_upload(request):
             input_type = 'text+image' if customer_input.strip() else 'image'
             customer_input = f"{customer_input} [上传了图片]"
     
-    # 处理音频文件
+    # 处理音频文件（已移除语音转文字功能）
     if 'audio' in request.files:
-        audio_file = request.files['audio']
-        if audio_file and audio_file.filename:
-            audio_data = base64.b64encode(audio_file.read()).decode('utf-8')
-            transcribed_text = speech_converter.convert_audio_to_text(audio_data)
-            
-            if transcribed_text:
-                customer_input = transcribed_text
-                input_type = 'voice'
-                audio_data = None
-            else:
-                raise ValueError("语音转文字失败，请重新录音或直接输入文字")
+        raise ValueError("语音转文字功能已移除，请直接输入文字")
     
     return {
         "customer_input": customer_input,

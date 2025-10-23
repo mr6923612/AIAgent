@@ -9,7 +9,7 @@ from datetime import datetime
 
 # 导入配置
 try:
-    from config import config
+    from ..config import config
     LOG_LEVEL = getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
     LOG_FORMAT = config.LOG_FORMAT
 except ImportError:
