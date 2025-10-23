@@ -1,608 +1,409 @@
-# AI Agent 智能客服系统
+# 🤖 AI Agent
 
-一个基于CrewAI和RAGFlow的智能客服系统，支持多模态输入和会话管理。
+[![CI/CD Pipeline](https://github.com/mr6923612/AIAgent/workflows/AI%20Agent%20CI/CD%20Pipeline/badge.svg)](https://github.com/mr6923612/AIAgent/actions)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Enabled-brightgreen)](https://github.com/mr6923612/AIAgent/actions)
+
+基于CrewAI的智能AI代理系统，支持本地Docker部署。
 
 ## ✨ 功能特性
 
-### 🤖 智能客服系统
-- **CrewAI框架**：基于CrewAI构建的智能客服系统
-- **多Agent协作**：支持多个AI Agent协同工作
-- **上下文理解**：智能理解用户意图和上下文
-- **个性化响应**：根据用户历史提供个性化服务
+- 🤖 **智能对话** - 基于Google AI (Gemini)的智能对话系统
+- 📚 **知识检索** - 集成RAGFlow进行知识检索和问答
+- 💾 **会话管理** - 支持多轮对话和会话持久化
+- 🎨 **现代UI** - React前端界面，响应式设计
+- 🐳 **容器化** - 完整的Docker容器化部署
+- 🔄 **CI/CD** - GitHub Actions自动化测试和部署流程
 
-### 📚 知识库集成
-- **RAGFlow集成**：集成RAGFlow进行知识检索和问答
-- **向量搜索**：支持语义搜索和相似度匹配
-- **知识更新**：支持动态更新知识库内容
-- **多源数据**：支持多种数据源的知识整合
+## 🌐 服务端口和URL
 
-### 💬 会话管理
-- **多会话支持**：支持同时管理多个对话会话
-- **会话持久化**：使用MySQL数据库持久化存储
-- **会话同步**：本地会话与RAGFlow会话同步
-- **会话删除**：支持删除本地和RAGFlow会话
+### 📋 服务概览
+| 服务类型 | 服务名称 | 端口 | 访问地址 | 状态 |
+|---------|---------|------|----------|------|
+| **前端应用** | aiagent-frontend | 3000 | http://localhost:3000 |
+| **后端API** | aiagent-backend | 8012 | http://localhost:8012 | 
+| **RAGFlow Web** | ragflow-server | 80 | http://localhost:80 | 
+| **RAGFlow API** | ragflow-server | 9380 | http://localhost:9380 | 
 
-### 🎤 多模态输入
-- **文本输入**：支持自然语言文本输入
-- **语音输入**：支持语音转文字功能
-- **图片输入**：支持图片上传和分析
-- **文件上传**：支持多种文件格式上传
+### 🗄️ 数据库服务
+| 服务名称 | 端口 | 连接信息 | 用途 |
+|---------|------|----------|------|
+| **AI Agent MySQL** | 3307 | `localhost:3307` | AI Agent专用数据库 |
+| **RAGFlow MySQL** | 5455 | `localhost:5455` | RAGFlow专用数据库 |
+| **RAGFlow Redis** | 6379 | `localhost:6379` | RAGFlow缓存服务 |
 
-### 🔄 实时交互
-- **流式对话**：支持流式对话和实时响应
-- **任务状态**：实时显示任务执行状态
-- **进度跟踪**：可视化任务执行进度
-- **错误处理**：智能错误处理和用户提示
+### 💾 存储和搜索服务
+| 服务名称 | 端口 | 访问地址 | 用途 |
+|---------|------|----------|------|
+| **MinIO控制台** | 9001 | http://localhost:9001 | 对象存储管理界面 |
+| **MinIO API** | 9000 | http://localhost:9000 | 对象存储API |
+| **Elasticsearch** | 1200 | http://localhost:1200 | 搜索引擎服务 |
+| **Ollama LLM** | 11434 | http://localhost:11434 | 本地LLM服务 |
 
-### 🛠️ 开发工具
-- **健康检查**：自动检查服务状态
-- **测试框架**：完整的测试用例和工具
-- **清理工具**：自动清理测试数据和会话
-- **监控脚本**：实时监控系统运行状态
+### 🔌 API端点
 
-## 🛠️ 技术栈
+#### 后端API (http://localhost:8012)
+| 端点 | 方法 | 描述 | 示例 |
+|------|------|------|------|
+| `/health` | GET | 健康检查 | `curl http://localhost:8012/health` |
+| `/api/sessions` | POST | 创建新会话 | `POST /api/sessions` |
+| `/api/sessions/{id}` | GET | 获取会话详情 | `GET /api/sessions/123` |
+| `/api/users/{id}/sessions` | GET | 获取用户所有会话 | `GET /api/users/1/sessions` |
+| `/api/crew` | POST | 发送消息给AI客服 | `POST /api/crew` |
+| `/api/crew/{job_id}` | GET | 获取任务状态 | `GET /api/crew/job-123` |
 
-### 后端技术
-- **Python 3.9+** - 主要编程语言
-- **Flask 3.0+** - Web框架和API服务
-- **CrewAI 0.1.32** - AI Agent框架
-- **LangChain** - LLM应用开发框架
-- **Google Generative AI** - 大语言模型服务
-- **RAGFlow** - 知识库和RAG服务
-- **MySQL 8.0+** - 关系型数据库
-- **PyMySQL** - MySQL数据库连接器
-- **python-dotenv** - 环境变量管理
+#### RAGFlow API (http://localhost:9380)
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/v1/chats` | GET | 获取聊天列表 |
+| `/api/v1/chats/{id}/sessions` | POST | 创建新会话 |
+| `/api/v1/chats/{id}/messages` | POST | 发送消息 |
 
-### 前端技术
-- **React 18+** - 用户界面框架
-- **Vite** - 构建工具和开发服务器
-- **Lucide React** - 图标库
-- **Axios** - HTTP客户端
-- **CSS3** - 样式设计
+### 🚀 快速访问
+- **前端界面**: http://localhost:3000
+- **后端API**: http://localhost:8012
+- **RAGFlow管理**: http://localhost:80
+- **MinIO控制台**: http://localhost:9001 (root/password)
+- **Elasticsearch**: http://localhost:1200
+- **Ollama**: http://localhost:11434
 
-### 部署技术
-- **Docker** - 容器化部署
-- **Docker Compose** - 多容器编排
-- **MySQL** - 数据持久化
-- **Qdrant** - 向量数据库
-- **Ollama** - 本地LLM服务
-
-### 开发工具
-- **Git** - 版本控制
-- **Python-dotenv** - 环境变量管理
-- **pytest** - 测试框架
-- **requests** - HTTP请求库
-- **SpeechRecognition** - 语音识别
-- **pydub** - 音频处理
-
-## 🏗️ 系统架构
-
-### LLM调用架构
+### 📊 服务依赖关系
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   前端界面      │    │   后端API       │    │   RAGFlow       │
-│   (React)       │───►│   (Flask)       │───►│   (知识检索)    │
-│   Port: 3000    │    │   Port: 5000    │    │   Port: 9380    │
-│   用户输入      │    │   接收请求      │    │   获取知识      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   Google AI     │
-                       │   (Gemini API)  │
-                       │   生成响应      │
-                       └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   后端API       │
-                       │   (Flask)       │
-                       │   Port: 5000    │
-                       │   流式输出      │
-                       └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   前端界面      │
-                       │   (React)       │
-                       │   Port: 3000    │
-                       │   展示响应      │
-                       └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   MySQL数据库   │
-                       │   Port: 3307    │
-                       │   会话存储      │
-                       └─────────────────┘
-```
-
-### 详细调用流程
-```
-前端用户输入 → 发送到后端API
-    ↓
-后端接收请求 → 调用RAGFlow知识检索
-    ↓
-RAGFlow返回相关知识 → 后端整合上下文
-    ↓
-后端调用Google AI (Gemini) → 生成响应
-    ↓
-Gemini流式输出 → 后端接收并转发
-    ↓
-后端流式返回 → 前端实时展示
-```
-
-## 📁 项目结构
-
-```
-AIAgent/
-├── 📂 crewaiBackend/                    # 后端服务
-│   ├── 📂 utils/                        # 工具模块
-│   │   ├── database.py                  # 数据库管理
-│   │   ├── sessionManager.py            # 会话管理
-│   │   ├── ragflow_client.py            # RAGFlow客户端
-│   │   ├── myLLM.py                     # LLM配置
-│   │   ├── speech_to_text.py            # 语音转文字
-│   │   └── jobManager.py                # 任务管理
-│   ├── 📂 scripts/                      # 脚本工具
-│   │   ├── check_requirements.py        # 依赖检查
-│   │   ├── cleanup_sessions.py          # 会话清理
-│   │   ├── quick_cleanup.py             # 快速清理
-│   │   ├── run_tests.py                 # 测试运行
-│   │   └── test_cleanup.py              # 测试清理
-│   ├── 📂 tests/                        # 测试用例
-│   │   ├── test_session_management.py   # 会话管理测试
-│   │   └── README.md                    # 测试文档
-│   ├── 📂 docs/                         # 文档
-│   │   ├── API_CONFIG.md                # API配置
-│   │   └── GOOGLE_API_SETUP.md          # Google API设置
-│   ├── main.py                          # Flask应用入口
-│   ├── crew.py                          # CrewAI配置
-│   ├── config.py                        # 配置文件
-│   ├── init_database.py                 # 数据库初始化
-│   ├── env.template                     # 环境变量模板
-│   ├── requirements.txt                 # Python依赖
-│   └── SETUP.md                         # 后端设置指南
-├── 📂 crewaiFrontend/                   # 前端应用
-│   ├── 📂 src/
-│   │   ├── 📂 components/               # React组件
-│   │   │   ├── ChatInterface.jsx        # 聊天界面
-│   │   │   ├── Login.jsx                # 登录组件
-│   │   │   └── Register.jsx             # 注册组件
-│   │   ├── 📂 utils/                    # 工具函数
-│   │   │   └── api.js                   # API调用
-│   │   ├── App.jsx                      # 主应用组件
-│   │   └── main.jsx                     # 应用入口
-│   ├── package.json                     # Node.js依赖
-│   └── vite.config.js                   # Vite配置
-├── 📂 tests/                            # 集成测试
-│   ├── 📂 integration/                  # 集成测试
-│   ├── 📂 unit/                         # 单元测试
-│   ├── 📂 llm_tests/                    # LLM测试
-│   └── run_all_tests.py                 # 测试运行器
-├── 🐳 部署文件
-│   ├── docker-compose.yml               # Docker编排
-│   ├── deploy.sh                        # Linux/macOS部署脚本
-│   ├── deploy.bat                       # Windows部署脚本
-│   ├── install_ragflow.sh               # RAGFlow安装脚本(Linux/macOS)
-│   ├── install_ragflow.bat              # RAGFlow安装脚本(Windows)
-│   └── health_check.py                  # 健康检查脚本
-├── 📚 文档
-│   ├── README.md                        # 项目说明
-│   ├── DEPLOYMENT.md                    # 部署指南
-│   └── .gitignore                       # Git忽略文件
-└── 📂 mysql_data/                       # MySQL数据目录(Docker)
+前端应用 (3000)
+    ↓ HTTP请求
+后端API (8012)
+    ↓ 数据库连接
+AI Agent MySQL (3307)
+    ↓ RAGFlow集成
+RAGFlow服务器 (80/9380)
+    ↓ 依赖服务
+├── RAGFlow MySQL (5455)
+├── RAGFlow Redis (6379)
+├── Elasticsearch (1200)
+└── MinIO (9000/9001)
 ```
 
 ## 🚀 快速开始
 
 ### 环境要求
-- **Docker 20.10+** 和 **Docker Compose 2.0+**
-- **Python 3.9+** (本地开发)
-- **Node.js 16+** (前端开发)
-- **MySQL 8.0+** (数据库)
 
-### 一键部署 (推荐)
+- Docker 20.10+
+- Docker Compose 2.0+
+- Git 2.0+
+- 4GB+ 内存
+- 2GB+ 可用磁盘空间
 
-#### 方法一：使用部署脚本
+### 一键部署
 
-**Linux/macOS:**
 ```bash
-# 克隆项目
-git clone <repository-url>
+# 1. 克隆项目
+git clone <your-repo-url>
 cd AIAgent
 
-# 运行部署脚本（包含RAGFlow安装）
-chmod +x deploy.sh
-./deploy.sh
+# 2. 快速启动
+./quick-start.sh
+
+# 3. 访问应用
+# 前端界面: http://localhost:3000
+# 后端API: http://localhost:8012
+# RAGFlow管理: http://localhost:80
 ```
 
-**Windows:**
-```cmd
-# 克隆项目
-git clone <repository-url>
-cd AIAgent
+> **注意**：首次运行时会自动创建环境变量文件，请根据提示配置必要的 API 密钥。
 
-# 运行部署脚本（包含RAGFlow安装）
-deploy.bat
-```
+### 手动部署
 
-#### 方法二：分步安装
-
-**1. 安装RAGFlow:**
 ```bash
-# Linux/macOS
-chmod +x install_ragflow.sh
-./install_ragflow.sh
-
-# Windows
-install_ragflow.bat
-```
-
-**2. 安装AI Agent:**
-```bash
-# 配置环境变量
+# 1. 设置环境变量
 cp crewaiBackend/env.template crewaiBackend/.env
-# 编辑 .env 文件，填入API密钥
+# 编辑 crewaiBackend/.env 文件，填入必要的配置
 
-# 启动AI Agent服务
-docker-compose up -d
-```
-
-#### 方法二：手动部署
-
-1. **克隆项目**
-```bash
-git clone <repository-url>
-cd AIAgent
-```
-
-2. **配置环境变量**
-```bash
-# 复制环境变量模板
-cp crewaiBackend/env.template crewaiBackend/.env
-
-# 编辑配置文件，填入您的API密钥
-nano crewaiBackend/.env  # 或使用您喜欢的编辑器
-```
-
-3. **启动服务**
-```bash
-# 启动所有服务
+# 2. 启动服务
 docker-compose up -d
 
-# 查看服务状态
-docker-compose ps
+# 3. 访问应用
+# 前端界面: http://localhost:3000
+# 后端API: http://localhost:8012
+# RAGFlow管理: http://localhost:80
 ```
 
-4. **初始化数据库**
+> **注意**：手动部署需要先配置环境变量文件，建议使用一键部署脚本。
+
+### 部署脚本说明
+
+项目提供了便捷的部署脚本：
+
+| 脚本 | 功能 | 说明 |
+|------|------|------|
+| `quick-start.sh` | 快速启动 | 一键启动所有服务，自动创建环境变量文件 |
+
+**使用方法**：
 ```bash
-# 初始化数据库表
-docker-compose exec aiagent-backend python init_database.py
+# 克隆项目并快速启动
+git clone <your-repo-url>
+cd AIAgent
+./quick-start.sh
 ```
 
-5. **访问应用**
-- **前端界面**: http://localhost:3000
-- **后端API**: http://localhost:5000
-- **RAGFlow**: http://localhost:9380
+## 🔍 服务状态检查
 
 ### 健康检查
 ```bash
-# 检查所有服务状态
-python health_check.py
+# 检查后端服务
+curl http://localhost:8012/health
 
-# 持续监控模式
-python health_check.py --continuous 30
+# 检查RAGFlow服务
+curl http://localhost:80
 
-# 保存检查报告
-python health_check.py --save-report
-```
-
-### 常用命令
-
-#### 服务管理
-```bash
-# 启动所有服务
-docker-compose up -d
-
-# 停止所有服务
-docker-compose down
-
-# 重启服务
-docker-compose restart
-
-# 查看服务状态
+# 检查所有容器状态
 docker-compose ps
-
-# 查看日志
-docker-compose logs -f
 ```
 
-#### 测试和清理
-```bash
-# 运行所有测试
-python crewaiBackend/scripts/run_tests.py
-
-# 清理所有会话
-python crewaiBackend/scripts/quick_cleanup.py
-
-# 检查依赖包
-python crewaiBackend/scripts/check_requirements.py
-```
-
-#### RAGFlow管理
-```bash
-# 安装RAGFlow
-./install_ragflow.sh  # Linux/macOS
-install_ragflow.bat   # Windows
-
-# 查看RAGFlow日志
-docker logs -f ragflow-server
-
-# 重启RAGFlow
-cd ragflow/docker && docker compose restart
-```
-
-### 本地开发
-
-#### 后端开发
-```bash
-# 进入后端目录
-cd crewaiBackend
-
-# 安装Python依赖
-pip install -r requirements.txt
-
-# 配置环境变量
-cp env.template .env
-# 编辑.env文件，填入您的API密钥
-
-# 初始化数据库
-python init_database.py
-
-# 启动后端服务
-python main.py
-```
-
-#### 前端开发
-```bash
-# 进入前端目录
-cd crewaiFrontend
-
-# 安装Node.js依赖
-npm install
-
-# 启动开发服务器
-npm start
-```
-
-# 仅启动AI Agent相关服务
-docker-compose --profile aiagent up -d
-```
-
-## 配置说明
-
-### 环境变量配置
-
-所有敏感信息都通过环境变量管理，请创建 `.env` 文件：
-
-```bash
-# 复制模板文件
-cp crewaiBackend/env.template crewaiBackend/.env
-
-# 编辑配置文件
-# 填入您的实际API密钥和配置
-```
-
-详细配置说明请参考：[SETUP.md](crewaiBackend/SETUP.md)
-
-### 环境变量列表
-
-```bash
-# Google API配置
-GOOGLE_API_KEY=your_google_api_key
-
-# RAGFlow配置
-RAGFLOW_BASE_URL=http://localhost:80
-RAGFLOW_API_KEY=your_ragflow_api_key
-RAGFLOW_CHAT_ID=your_chat_id
-
-# MySQL配置
-MYSQL_HOST=localhost
-MYSQL_PORT=3307
-MYSQL_USER=root
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=aiagent_chat
-```
-
-### 安全注意事项
-
-- **永远不要**将 `.env` 文件提交到Git仓库
-- 确保 `.env` 文件在 `.gitignore` 中
-- 定期轮换API密钥
-
-## API文档
-
-### 会话管理
-
-- `POST /api/sessions` - 创建新会话
-- `GET /api/sessions/{session_id}` - 获取会话详情
-- `DELETE /api/sessions/{session_id}` - 删除会话
-- `PUT /api/sessions/{session_id}` - 更新会话标题
-- `GET /api/users/{user_id}/sessions` - 获取用户所有会话
-
-### 消息管理
-
-- `POST /api/sessions/{session_id}/messages` - 添加消息到会话
-
-### 客服机器人
-
-- `POST /api/crew` - 发送消息给客服机器人
-- `GET /api/crew/{job_id}` - 获取任务状态
-
-## 开发指南
-
-### 代码结构优化
-
-1. **后端优化**：
-   - 统一的错误处理机制
-   - 公共API请求方法
-   - 模块化的会话管理
-   - 完善的日志记录
-
-2. **前端优化**：
-   - 统一的API调用工具
-   - 组件化的UI设计
-   - 错误处理机制
-   - 响应式设计
-
-### 测试和清理
-
-1. **测试用例**：
-   - 所有测试用例都会自动清理创建的会话
-   - 使用 `scripts/test_cleanup.py` 管理测试会话
-   - 运行 `python scripts/run_tests.py` 执行所有测试
-
-2. **会话清理**：
-   - 使用 `scripts/cleanup_sessions.py` 清理所有会话
-   - 支持清理本地会话和RAGFlow会话
-   - 支持清理数据库表
-
-3. **测试工具**：
-   ```bash
-   # 运行所有测试
-   python scripts/run_tests.py
-   
-   # 运行指定测试
-   python scripts/run_tests.py --test test_session_management
-   
-   # 只运行清理
-   python scripts/run_tests.py --cleanup-only
-   
-   # 清理所有会话
-   python scripts/cleanup_sessions.py
-   ```
-
-### 添加新功能
-
-1. **后端**：在相应的模块中添加新功能
-2. **前端**：在`utils/api.js`中添加API调用，在组件中使用
-3. **测试**：编写相应的测试用例，确保测试后清理
-
-## 故障排除
-
-### 常见问题
-
-1. **RAGFlow连接失败**：
-   - 检查RAGFlow服务是否运行
-   - 验证API密钥和URL配置
-   - 检查网络连接
-
-2. **数据库连接失败**：
-   - 检查MySQL服务状态
-   - 验证数据库配置
-   - 检查数据库权限
-
-3. **前端API调用失败**：
-   - 检查后端服务是否运行
-   - 验证API端点URL
-   - 检查CORS配置
-
-### 日志查看
-
+### 服务日志
 ```bash
 # 查看后端日志
-tail -f crewaiBackend/app.log
+docker-compose logs aiagent-backend
 
-# 查看Docker日志
-docker-compose logs -f aiagent-backend
+# 查看RAGFlow日志
+docker-compose logs ragflow-server
+
+# 查看所有服务日志
+docker-compose logs
 ```
 
-## 贡献指南
+## 🛠️ 常用命令
 
-1. Fork项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建Pull Request
+### 开发环境
+```bash
+make dev              # 启动开发环境
+make test             # 运行测试
+make lint             # 代码检查
+make health           # 健康检查
+```
 
-## 许可证
+### 本地部署
+```bash
+make deploy           # 本地Docker部署
+make monitor          # 查看服务状态
+make status           # 查看服务状态
+```
 
-MIT License
+### 维护操作
+```bash
+make logs             # 查看日志
+make restart          # 重启服务
+make clean            # 清理资源
+make update           # 更新代码
+```
 
-## 🔧 故障排除
+## 📊 项目结构
+
+```
+AIAgent/
+├── crewaiBackend/          # 后端服务
+│   ├── main.py            # 主应用入口
+│   ├── crew.py            # CrewAI配置
+│   ├── utils/             # 工具模块
+│   ├── tests/             # 测试文件
+│   └── Dockerfile         # 后端Docker配置
+├── crewaiFrontend/         # 前端服务
+│   ├── src/               # React源码
+│   ├── public/            # 静态资源
+│   └── Dockerfile         # 前端Docker配置
+├── .github/workflows/      # CI/CD配置
+│   ├── ci.yml            # 主CI/CD流程
+│   └── status-badges.yml  # 状态徽章
+├── scripts/               # 部署脚本
+│   └── deploy-to-github.sh # GitHub部署脚本
+├── docker-compose.yml     # Docker Compose配置
+├── Makefile              # 项目管理命令
+└── README.md             # 项目说明
+```
+
+## 🔧 配置说明
+
+### 环境变量
+
+编辑 `crewaiBackend/.env` 文件：
+
+```env
+# Google AI API
+GOOGLE_API_KEY=your_google_api_key_here
+
+# RAGFlow 配置
+RAGFLOW_BASE_URL=http://localhost:9380
+RAGFLOW_API_KEY=your_ragflow_api_key_here
+RAGFLOW_CHAT_ID=your_ragflow_chat_id_here
+
+# MySQL 数据库配置
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=root123
+MYSQL_DATABASE=aiagent_chat
+
+# Flask 配置
+FLASK_ENV=production
+FLASK_DEBUG=False
+PORT=8012
+```
+
+### 端口配置
+
+- **前端**: 3000
+- **后端**: 8012
+- **MySQL**: 3307
+
+## 🔄 CI/CD 流程
+
+项目配置了完整的CI/CD流程，使用GitHub Actions进行自动化测试和部署：
+
+**🔗 GitHub Actions状态**: [查看CI/CD流水线状态](https://github.com/mr6923612/AIAgent/actions)
+
+### 📋 流水线阶段
+
+1. **代码推送** → 触发GitHub Actions
+2. **测试阶段** → 运行单元测试、集成测试、API测试
+3. **构建阶段** → 构建Docker镜像
+4. **安全检查** → 运行安全扫描
+5. **代码检查** → 运行代码质量检查
+6. **部署测试** → 测试本地Docker部署
+
+### 🚀 自动化流程
+   ```bash
+# 本地开发
+make dev
+
+# 运行测试
+make test
+
+# 推送代码（自动触发CI/CD）
+git add .
+git commit -m "Add new feature"
+git push origin main
+
+# 本地部署
+make deploy
+```
+
+## 🧪 测试框架
+
+项目使用pytest作为测试框架，提供完整的测试覆盖：
+
+### 测试类型
+- **单元测试** - 测试各个模块的独立功能
+- **集成测试** - 测试模块间的交互
+- **API测试** - 测试Flask API接口
+- **数据库测试** - 测试MySQL数据库操作
+- **外部服务测试** - 测试RAGFlow、Gemini等外部服务集成
+
+### 运行测试
+```bash
+# 使用Makefile（推荐）
+make test             # 运行所有测试
+make test-unit        # 运行单元测试
+make test-integration # 运行集成测试
+make test-api         # 运行API测试
+make test-coverage    # 运行测试并生成覆盖率报告
+
+# 直接使用pytest
+cd crewaiBackend
+python -m pytest tests/ -v                    # 运行所有测试
+python -m pytest tests/unit/ -v               # 运行单元测试
+python -m pytest tests/integration/ -v        # 运行集成测试
+python -m pytest tests/api/ -v                # 运行API测试
+python -m pytest tests/ --cov=crewaiBackend   # 运行测试并生成覆盖率报告
+```
+
+### 测试配置
+- **pytest.ini** - pytest配置文件
+- **conftest.py** - 测试配置和夹具
+- **测试数据** - 使用fixture提供测试数据
+
+### 测试目录结构
+```
+crewaiBackend/tests/
+├── conftest.py        # 测试配置和夹具
+├── test_config.py     # 测试环境配置
+├── unit/              # 单元测试
+│   ├── test_database.py
+│   ├── test_session_manager.py
+│   └── test_ragflow_client.py
+├── integration/       # 集成测试
+│   └── test_session_flow.py
+├── api/              # API测试
+│   ├── test_crew_api.py
+│   └── test_session_api.py
+├── database/         # 数据库测试
+│   └── test_mysql_operations.py
+└── external/         # 外部服务测试
+    └── test_ragflow_integration.py
+```
+
+### CI/CD集成
+测试已集成到GitHub Actions中，每次代码推送都会自动运行：
+- 单元测试
+- 集成测试
+- API测试
+- 数据库测试
+- 外部服务测试
+- 代码覆盖率检查
+
+## 🚨 故障排除
 
 ### 常见问题
 
 #### 1. 服务启动失败
 ```bash
-# 检查Docker状态
-docker --version
-docker-compose --version
+# 检查服务状态
+make status
 
-# 检查端口占用
-netstat -tulpn | grep :3000
-netstat -tulpn | grep :5000
+# 查看详细日志
+make logs
 
-# 查看详细错误日志
-docker-compose logs aiagent-backend
+# 重启服务
+make restart
 ```
 
 #### 2. 数据库连接失败
 ```bash
-# 检查MySQL容器状态
-docker-compose ps backend-mysql
+# 检查数据库状态
+make logs-mysql
 
-# 重启数据库服务
-docker-compose restart backend-mysql
-
-# 重新初始化数据库
-docker-compose exec aiagent-backend python init_database.py
+# 进入数据库Shell
+make db-shell
 ```
 
-#### 3. RAGFlow连接问题
+#### 3. 端口冲突
 ```bash
-# 检查RAGFlow状态
-docker ps | grep ragflow
-
-# 重启RAGFlow
-cd ragflow/docker && docker compose restart
-
-# 查看RAGFlow日志
-docker logs -f ragflow-server
-```
-
-#### 4. API密钥错误
-```bash
-# 检查环境变量
-docker-compose exec aiagent-backend env | grep API
-
-# 重新加载配置
-docker-compose down && docker-compose up -d
+# 检查端口占用
+netstat -tulpn | grep :3000
+netstat -tulpn | grep :8012
 ```
 
 ### 性能优化
 
-#### 内存优化
+#### 1. 内存优化
 ```bash
-# 检查内存使用
+# 查看内存使用
 docker stats
 
-# 限制容器内存使用
-# 在docker-compose.yml中添加内存限制
+# 限制容器内存
+# 在docker-compose.yml中添加：
+# deploy:
+#   resources:
+#     limits:
+#       memory: 1G
 ```
 
-#### 数据库优化
+#### 2. 数据库优化
 ```bash
-# 检查数据库性能
-docker-compose exec backend-mysql mysql -u root -p -e "SHOW PROCESSLIST;"
+# 进入数据库
+make db-shell
+
+# 创建索引
+CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id);
+CREATE INDEX idx_chat_messages_session_id ON chat_messages(session_id);
 ```
-
-## 📚 相关文档
-
-- [🚀 部署指南](DEPLOYMENT.md) - 详细的部署和配置说明
-- [🔧 后端设置指南](crewaiBackend/SETUP.md) - 后端环境配置
-- [🧪 测试文档](crewaiBackend/tests/README.md) - 测试用例和工具
 
 ## 🤝 贡献指南
 
@@ -610,12 +411,137 @@ docker-compose exec backend-mysql mysql -u root -p -e "SHOW PROCESSLIST;"
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
+5. 创建 Pull Request
 
 ## 📄 许可证
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
 
-## 联系方式
+## 📁 数据文件夹结构
 
-如有问题或建议，请提交Issue或联系开发团队。
+项目采用统一的数据文件夹结构，便于管理和维护：
+
+```
+data/
+├── aiagent/              # AI Agent核心服务数据
+│   └── mysql/           # AI Agent MySQL数据库文件
+├── ragflow/             # RAGFlow服务数据
+│   ├── app/             # RAGFlow应用数据
+│   ├── elasticsearch/   # Elasticsearch索引数据
+│   ├── minio/           # MinIO对象存储数据
+│   ├── mysql/           # RAGFlow MySQL数据库文件
+│   └── redis/           # Redis缓存数据
+└── ollama/              # Ollama LLM模型数据
+    ├── models/          # 下载的模型文件
+    ├── id_ed25519       # SSH密钥
+    └── id_ed25519.pub   # SSH公钥
+```
+
+### 🔧 Docker卷映射配置
+
+```yaml
+# AI Agent MySQL
+volumes:
+  - ./data/aiagent/mysql:/var/lib/mysql
+
+# RAGFlow MySQL
+volumes:
+  - ./data/ragflow/mysql:/var/lib/mysql
+
+# RAGFlow MinIO
+volumes:
+  - ./data/ragflow/minio:/data
+
+# RAGFlow Elasticsearch
+volumes:
+  - ./data/ragflow/elasticsearch:/usr/share/elasticsearch/data
+
+# RAGFlow Redis
+volumes:
+  - ./data/ragflow/redis:/data
+
+# RAGFlow App
+volumes:
+  - ./data/ragflow/app:/ragflow
+
+# Ollama
+volumes:
+  - ./data/ollama:/root/.ollama
+```
+
+### 🎯 数据管理优势
+
+- **统一管理**: 所有数据文件集中存储
+- **分类清晰**: 按服务类型组织数据
+- **便于备份**: 统一的数据备份策略
+- **权限控制**: 更好的数据安全保护
+- **易于维护**: 简化的清理和维护流程
+
+## 🛠️ 故障排除
+
+### 端口冲突
+如果遇到端口冲突，可以修改 `docker-compose.yml` 中的端口映射：
+
+```yaml
+ports:
+  - "3001:3000"  # 将前端端口改为3001
+  - "8013:8012"  # 将后端端口改为8013
+```
+
+### 服务无法访问
+1. 检查容器状态：`docker-compose ps`
+2. 查看服务日志：`docker-compose logs [service-name]`
+3. 检查端口占用：`netstat -an | grep :8012`
+4. 重启服务：`docker-compose restart [service-name]`
+
+### 数据库连接问题
+1. 检查数据库容器：`docker-compose logs backend-mysql`
+2. 测试数据库连接：`docker-compose exec backend-mysql mysql -u root -proot123`
+3. 检查网络连接：`docker network ls`
+
+### 常见问题解决
+
+#### 1. 前端无法连接后端
+```bash
+# 检查后端是否运行
+curl http://localhost:8012/health
+
+# 检查前端API配置
+# 确保 crewaiFrontend/src/utils/api.js 中的 API_BASE_URL 正确
+```
+
+#### 2. RAGFlow连接失败
+```bash
+# 检查RAGFlow服务
+curl http://localhost:80
+
+# 检查RAGFlow容器日志
+docker-compose logs ragflow-server
+```
+
+#### 3. 数据库连接失败
+```bash
+# 检查MySQL容器
+docker-compose logs backend-mysql
+
+# 测试数据库连接
+docker-compose exec backend-mysql mysql -u root -proot123 -e "SELECT 1;"
+```
+
+### 性能优化建议
+
+1. **端口范围**: 确保端口3000-12000范围内没有其他服务占用
+2. **防火墙**: 确保防火墙允许这些端口的访问
+3. **资源要求**: 建议至少4GB内存和2GB可用磁盘空间
+4. **网络隔离**: 所有服务都在 `aiagent-net` 网络中，确保容器间通信正常
+
+## 🆘 获取帮助
+
+- 查看所有可用命令: `make help`
+- 查看项目信息: `make info`
+- 查看版本信息: `make version`
+- 详细健康检查: `make health-detailed`
+
+---
+
+**🎉 开始使用AI Agent，享受智能对话的乐趣！**

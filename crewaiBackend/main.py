@@ -63,6 +63,7 @@ from utils.jobManager import append_event, jobs, jobs_lock, Event
 from utils.myLLM import my_llm
 from utils.speech_to_text import speech_converter
 from utils.sessionManager import SessionManager
+from utils.session_agent_manager import session_agent_manager
 
 
 # 创建Flask应用实例
@@ -72,6 +73,24 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # 初始化会话管理器
 session_manager = SessionManager()
+
+# 启动定时清理任务
+import threading
+import time
+
+def periodic_cleanup():
+    """定期清理非活跃会话"""
+    while True:
+        try:
+            time.sleep(300)  # 每5分钟清理一次
+            session_agent_manager.cleanup_inactive_sessions(max_age_seconds=1800)  # 30分钟超时
+            print(f"[清理] 会话清理完成，当前状态: {session_agent_manager.get_session_status()}")
+        except Exception as e:
+            print(f"[清理] 会话清理失败: {e}")
+
+# 启动后台清理线程
+cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
+cleanup_thread.start()
 
 
 def create_ragflow_client():
@@ -166,12 +185,11 @@ def kickoff_crew(job_id, inputs):
         if not inputs.get("customer_input", "").strip():
             raise ValueError("客户输入不能为空")
         
-        # 初始化LLM和Crew
-        llm_instance = my_llm(LLM_TYPE)
-        crew_instance = CrewtestprojectCrew(job_id, llm_instance)
+        # 使用会话Agent管理器（复用Agent）
+        session_agent = session_agent_manager.get_or_create_agent(session_id)
         
         # 执行分析
-        results = crew_instance.kickoff(inputs)
+        results = session_agent.kickoff(inputs)
         print(f"{session_prefix} 任务 {job_id} 分析完成")
         
         # 更新任务状态为完成
@@ -245,6 +263,32 @@ def get_status(job_id):
         "events": [{"timestamp": event.timestamp.isoformat(), "data": event.data} for event in job.events]
     })
 
+
+@app.route('/api/sessions/status', methods=['GET'])
+def get_sessions_status():
+    """获取所有会话状态"""
+    try:
+        status = session_agent_manager.get_session_status()
+        return jsonify(status), 200
+    except Exception as e:
+        return handle_api_error(f"获取会话状态失败: {str(e)}", 500)
+
+@app.route('/api/sessions/cleanup', methods=['POST'])
+def cleanup_sessions():
+    """清理非活跃会话"""
+    try:
+        data = request.json or {}
+        max_age = data.get('max_age_seconds', 1800)  # 默认30分钟
+        
+        session_agent_manager.cleanup_inactive_sessions(max_age)
+        status = session_agent_manager.get_session_status()
+        
+        return jsonify({
+            "message": f"清理完成，最大非活跃时间: {max_age}秒",
+            "status": status
+        }), 200
+    except Exception as e:
+        return handle_api_error(f"清理会话失败: {str(e)}", 500)
 
 @app.route('/api/sessions', methods=['POST'])
 def create_session():
@@ -322,6 +366,9 @@ def delete_session(session_id):
         if not success:
             return handle_api_error("Session not found", 404)
         
+        # 释放会话Agent
+        session_agent_manager.release_agent(session_id)
+        
         return jsonify({"message": "Session deleted successfully"})
         
     except Exception as e:
@@ -335,8 +382,31 @@ def get_user_sessions(user_id):
     return jsonify([session.to_dict() for session in sessions])
 
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """健康检查端点"""
+    try:
+        # 检查数据库连接
+        from utils.database import db_manager
+        db_status = db_manager._check_connection()
+        
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "database": "connected" if db_status else "disconnected",
+            "service": "aiagent-backend"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e),
+            "service": "aiagent-backend"
+        }), 503
+
+
 if __name__ == '__main__':
     logger.info(f"在端口 {PORT} 上启动服务器")
     debug_mode = config.FLASK_DEBUG == "True" or config.FLASK_DEBUG is True
     logger.info(f"Debug模式: {debug_mode}")
-    app.run(debug=debug_mode, port=PORT)
+    app.run(debug=debug_mode, port=PORT, host='0.0.0.0')

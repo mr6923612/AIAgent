@@ -1,8 +1,15 @@
+# ================================
+# AI Agent 项目 .gitignore 文件
+# ================================
+
 # 环境变量文件（包含敏感信息）
 .env
+.env.*
+!.env.template
 .env.local
 .env.development
 .env.production
+.env.staging
 
 # Python
 __pycache__/
@@ -26,20 +33,51 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.egg-info/
+*.dist-info/
 
-# 虚拟环境
+# Python 虚拟环境
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
+.env/
+.python-version
 
-# IDE
+# Python 包管理
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# IDE 和编辑器
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+.atom/
+.brackets.json
 
 # 操作系统
 .DS_Store
@@ -49,33 +87,279 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # 日志文件
 *.log
 logs/
+crewaiBackend/*.log
+crewaiBackend/logs/
+*.log.*
 
 # 数据库文件
 *.db
 *.sqlite3
+*.sqlite
+*.db-journal
+
+# 数据文件夹（包含所有服务的数据）
+data/
 mysql_data/
+ollama_data/
+ragflow_data/
+ragflow_es_data/
+ragflow_minio_data/
+ragflow_mysql_data/
+ragflow_redis_data/
 
 # 临时文件
 *.tmp
 *.temp
+*.bak
+*.swp
+*.swo
+*~
 
 # Node.js
 node_modules/
+**/node_modules/
+crewaiFrontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
 
 # 前端构建文件
 crewaiFrontend/build/
 crewaiFrontend/dist/
+crewaiFrontend/.next/
+crewaiFrontend/out/
+crewaiFrontend/.nuxt/
+crewaiFrontend/.vuepress/dist/
+crewaiFrontend/.serverless/
+crewaiFrontend/.fusebox/
+
+# 前端依赖和缓存
+crewaiFrontend/node_modules/
+crewaiFrontend/.cache/
+crewaiFrontend/.parcel-cache/
+crewaiFrontend/.vscode/
+crewaiFrontend/.idea/
 
 # Docker
 .dockerignore
+docker-compose.override.yml
+.docker/
 
 # 其他敏感文件
 config_local.py
 secrets.json
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+
+# 测试相关
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+reports/
+test-results/
+crewaiBackend/.pytest_cache/
+crewaiBackend/htmlcov/
+crewaiBackend/.coverage
+crewaiBackend/coverage.xml
+crewaiBackend/reports/
+crewaiBackend/test-results/
+crewaiBackend/security-report.json
+.pytest_cache/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# 测试数据库
+test_backend_db/
+test_*.db
+test_*.sqlite3
+test_database/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# 项目特定的忽略文件
+# ================================
+
+# AI Agent 后端特定
+crewaiBackend/instance/
+crewaiBackend/uploads/
+crewaiBackend/downloads/
+crewaiBackend/temp/
+crewaiBackend/cache/
+
+# AI Agent 前端特定
+crewaiFrontend/public/uploads/
+crewaiFrontend/public/downloads/
+crewaiFrontend/src/assets/temp/
+
+# RAGFlow 相关
+ragflow/logs/
+ragflow/data/
+ragflow/uploads/
+ragflow/downloads/
+ragflow/temp/
+ragflow/cache/
+
+# 部署相关
+deployment/
+deployments/
+*.deployment
+*.kubeconfig
+helm-charts/
+
+# 监控和日志
+monitoring/
+grafana/
+prometheus/
+elasticsearch/
+kibana/
+logstash/
+
+# 备份文件
+backups/
+*.backup
+*.bak
+*.old
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.tar.bz2
+*.rar
+*.7z
+
+# 文档生成
+docs/_build/
+docs/build/
+docs/site/
+
+# 性能分析
+*.prof
+*.profile
+*.pstats
+
+# 安全扫描结果
+security-report.json
+vulnerability-report.json
+dependency-check-report.json
+
+# 本地开发工具
+.local/
+.localrc
+local_settings.py
+
+# 数据库迁移（如果需要忽略）
+# migrations/
+# alembic/versions/
+
+# 静态文件收集
+staticfiles/
+static_root/
+media_root/
+
+# 缓存目录
+.cache/
+cache/
+tmp/
+
+# 配置文件（包含敏感信息的本地配置）
+config_local.py
+settings_local.py
+local_config.py
+
+# API 密钥和证书
+api_keys.json
+certificates/
+*.crt
+*.cer
+*.der
+
+# 第三方服务配置
+firebase-adminsdk-*.json
+galaxy-*.json
+service-account-*.json
+
+# 开发工具
+.direnv/
+.envrc
+
+# 版本控制
+.git/
+.gitattributes
+.gitignore
+.gitmodules
+
+# 包管理器锁定文件（根据需要选择保留或忽略）
+# package-lock.json
+# yarn.lock
+# Pipfile.lock

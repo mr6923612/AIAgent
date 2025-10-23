@@ -10,7 +10,7 @@ services:
     ports:
       - "3307:3306"  # 保持端口3307不变，这是AI Agent的独立数据库
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - ./data/aiagent/mysql:/var/lib/mysql
     networks:
       - aiagent-net
     profiles:
@@ -27,7 +27,7 @@ services:
     ports:
       - "5455:3306"
     volumes:
-      - ./ragflow_mysql_data:/var/lib/mysql
+      - ./data/ragflow/mysql:/var/lib/mysql
     networks:
       - aiagent-net
 
@@ -43,7 +43,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ./ragflow_minio_data:/data
+      - ./data/ragflow/minio:/data
     command: server /data --console-address ":9001"
     networks:
       - aiagent-net
@@ -60,7 +60,7 @@ services:
     ports:
       - "1200:9200"
     volumes:
-      - ./ragflow_es_data:/usr/share/elasticsearch/data
+      - ./data/ragflow/elasticsearch:/usr/share/elasticsearch/data
     networks:
       - aiagent-net
 
@@ -72,7 +72,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ./ragflow_redis_data:/data
+      - ./data/ragflow/redis:/data
     networks:
       - aiagent-net
 
@@ -90,7 +90,7 @@ services:
       - "9381:9381"
       - "9382:9382"
     volumes:
-      - ./ragflow_data:/ragflow
+      - ./data/ragflow/app:/ragflow
     environment:
       - MYSQL_HOST=ragflow-mysql
       - MYSQL_PORT=3306
@@ -120,7 +120,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ./ollama_data:/root/.ollama
+      - ./data/ollama:/root/.ollama
     networks:
       - aiagent-net
 
@@ -140,8 +140,26 @@ services:
       - MYSQL_PASSWORD=root123
       - MYSQL_DATABASE=aiagent_chat
       - RAGFLOW_BASE_URL=http://ragflow-server:80
+    volumes:
+      - ./crewaiBackend/.env:/app/.env:ro
     depends_on:
       - backend-mysql
+    networks:
+      - aiagent-net
+    profiles:
+      - aiagent
+
+  # AI Agent前端服务
+  aiagent-frontend:
+    build:
+      context: ./crewaiFrontend
+      dockerfile: Dockerfile
+    container_name: aiagent-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - aiagent-backend
     networks:
       - aiagent-net
     profiles:
