@@ -78,13 +78,11 @@ jobs:
     
     - name: Run basic function tests
       run: |
-        cd crewaiBackend
         python -m pytest tests/ -v --tb=short
       
     - name: Run tests with coverage
       run: |
-        cd crewaiBackend
-        python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-fail-under=30
+        python -m pytest tests/ -v --cov=crewaiBackend --cov-report=xml --cov-report=html --cov-fail-under=30
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -92,8 +90,8 @@ jobs:
       with:
         name: test-results
         path: |
-          crewaiBackend/htmlcov/
-          crewaiBackend/reports/
+          htmlcov/
+          coverage.xml
 
   build:
     needs: test
@@ -141,8 +139,7 @@ jobs:
     
     - name: Install Python dependencies
       run: |
-        cd crewaiBackend
-        pip install -r requirements.txt
+        pip install -r crewaiBackend/requirements.txt
     
     - name: Install Node.js dependencies
       run: |
@@ -151,9 +148,8 @@ jobs:
     
     - name: Basic syntax check
       run: |
-        cd crewaiBackend
         echo "Running basic Python syntax check..."
-        python -c "print('✅ Python syntax check passed')" || echo "⚠️ Python syntax issues"
+        python -c "print('✅ Python syntax check passed')"
         echo "Basic syntax check completed"
 
   deploy:
