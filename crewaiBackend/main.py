@@ -287,21 +287,17 @@ def create_session():
         user_id = data.get('user_id', 'anonymous')
         title = data.get('title')
         
-        # 创建RAGFlow客户端
-        ragflow_client = create_ragflow_client()
-        
-        # 创建会话（包含RAGFlow会话）
+        # 创建会话（只创建数据库记录，RAGFlow会话在第一次对话时创建）
         session = session_manager.create_session(
             user_id=user_id, 
-            title=title, 
-            ragflow_client=ragflow_client
+            title=title
         )
         
         return jsonify({
             "session_id": session.session_id,
             "title": session.title,
             "created_at": session.created_at.isoformat(),
-            "ragflow_session_id": session.ragflow_session_id
+            "ragflow_session_id": None  # RAGFlow会话在第一次对话时创建
         }), 201
         
     except Exception as e:
@@ -347,16 +343,13 @@ def update_session(session_id):
 def delete_session(session_id):
     """删除会话"""
     try:
-        # 创建RAGFlow客户端
-        ragflow_client = create_ragflow_client()
+        # 1. 先释放会话Agent（会自动删除对应的RAGFlow会话）
+        session_agent_manager.release_agent(session_id)
         
-        # 删除会话（包含RAGFlow会话）
-        success = session_manager.delete_session(session_id, ragflow_client)
+        # 2. 删除数据库中的会话记录
+        success = session_manager.delete_session(session_id)
         if not success:
             return handle_api_error("Session not found", 404)
-        
-        # 释放会话Agent
-        session_agent_manager.release_agent(session_id)
         
         return jsonify({"message": "Session deleted successfully"})
         

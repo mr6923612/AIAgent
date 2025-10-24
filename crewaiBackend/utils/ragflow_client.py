@@ -273,6 +273,49 @@ class RAGFlowClient:
             删除结果字典
         """
         return self.delete_sessions(chat_id, [session_id], max_retries)
+    
+    def list_chats(self, page: int = 1, page_size: int = 30, orderby: str = "create_time", desc: bool = True):
+        """
+        获取对话助手列表
+        
+        Args:
+            page: 页码，从1开始
+            page_size: 每页数量
+            orderby: 排序字段
+            desc: 是否降序
+            
+        Returns:
+            对话助手列表（list）或空列表
+        """
+        url = f"{self.base_url}/api/v1/chats"
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "orderby": orderby,
+            "desc": desc
+        }
+        
+        try:
+            response = requests.get(url, headers=self.headers, params=params, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('code') == 0:
+                data = result.get('data', [])
+                # RAGFlow API可能返回list或dict，统一处理
+                if isinstance(data, list):
+                    return data
+                elif isinstance(data, dict):
+                    return data.get('items', [])
+                else:
+                    return []
+            else:
+                logger.error(f"获取对话助手列表失败: {result.get('message')}")
+                return []
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"获取对话助手列表请求失败: {e}")
+            return []
 
 
 # 便捷函数

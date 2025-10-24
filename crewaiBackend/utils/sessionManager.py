@@ -111,40 +111,27 @@ class SessionManager:
         self.db = db_manager
         logger.info("会话管理器初始化完成")
 
-    def create_session(self, user_id: str = None, title: str = None, ragflow_client=None) -> ChatSession:
-        """创建新会话"""
+    def create_session(self, user_id: str = None, title: str = None) -> ChatSession:
+        """
+        创建新会话（只创建数据库记录）
+        注意：RAGFlow会话的创建由session_agent_manager在第一次对话时自动创建
+        """
         session_id = str(uuid4())
         user_id = user_id or "anonymous"
         title = title or f"聊天会话 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        ragflow_session_id = None
-        
-        # 如果提供了RAGFlow客户端，创建RAGFlow会话
-        if ragflow_client:
-            try:
-                from .ragflow_client import DEFAULT_CHAT_ID
-                session_data = ragflow_client.create_session(
-                    chat_id=DEFAULT_CHAT_ID,
-                    name=title,
-                    user_id=f"user_{session_id}"
-                )
-                ragflow_session_id = session_data.get('id')
-                logger.info(f"创建RAGFlow会话成功: {ragflow_session_id}")
-            except Exception as e:
-                logger.warning(f"创建RAGFlow会话失败: {e}")
-                # 即使RAGFlow创建失败，也继续创建本地会话
         
         try:
-            # 插入会话到数据库
+            # 插入会话到数据库（ragflow_session_id暂时为NULL，后续由agent管理）
             query = """
                 INSERT INTO chat_sessions (session_id, user_id, title, context, ragflow_session_id)
                 VALUES (%s, %s, %s, %s, %s)
             """
-            params = (session_id, user_id, title, json.dumps({}), ragflow_session_id)
+            params = (session_id, user_id, title, json.dumps({}), None)
             self.db.execute_update(query, params)
             
             # 创建会话对象
-            session = ChatSession(session_id=session_id, user_id=user_id, title=title, ragflow_session_id=ragflow_session_id)
-            logger.info(f"创建新会话: {session_id}, RAGFlow会话: {ragflow_session_id}")
+            session = ChatSession(session_id=session_id, user_id=user_id, title=title, ragflow_session_id=None)
+            logger.info(f"创建新会话: {session_id}")
             return session
             
         except Exception as e:
@@ -270,52 +257,25 @@ class SessionManager:
         except Exception as e:
             logger.error(f"更新会话标题失败: {e}")
 
-    def delete_session(self, session_id: str, ragflow_client=None) -> bool:
-        """删除会话"""
+    def delete_session(self, session_id: str) -> bool:
+        """
+        删除会话（只删除数据库记录）
+        注意：RAGFlow会话的删除由session_agent_manager负责
+        """
         try:
-            # 获取会话信息，包括RAGFlow会话ID
-            session = self.get_session(session_id)
-            if not session:
-                logger.warning(f"会话不存在: {session_id}")
-                return False
-            
-            # 如果有RAGFlow会话ID，先删除RAGFlow会话
-            if session.ragflow_session_id and ragflow_client:
-                self._delete_ragflow_session(ragflow_client, session.ragflow_session_id)
-            
             # 删除本地会话（由于外键约束，删除会话会自动删除相关消息）
-            return self._delete_local_session(session_id)
-            
-        except Exception as e:
-            logger.error(f"删除会话失败: {e}")
-            return False
-    
-    def _delete_ragflow_session(self, ragflow_client, ragflow_session_id: str) -> bool:
-        """删除RAGFlow会话"""
-        try:
-            from .ragflow_client import DEFAULT_CHAT_ID
-            ragflow_client.delete_session(
-                chat_id=DEFAULT_CHAT_ID,
-                session_id=ragflow_session_id
-            )
-            logger.info(f"成功删除RAGFlow会话: {ragflow_session_id}")
-            return True
-        except Exception as e:
-            logger.warning(f"删除RAGFlow会话失败: {e}")
-            return False
-    
-    def _delete_local_session(self, session_id: str) -> bool:
-        """删除本地会话"""
-        try:
             query = "DELETE FROM chat_sessions WHERE session_id = %s"
             affected_rows = self.db.execute_update(query, (session_id,))
             
             if affected_rows > 0:
                 logger.info(f"删除本地会话: {session_id}")
                 return True
-            return False
+            else:
+                logger.warning(f"会话不存在: {session_id}")
+                return False
+                
         except Exception as e:
-            logger.error(f"删除本地会话失败: {e}")
+            logger.error(f"删除会话失败: {e}")
             return False
 
     def get_all_sessions(self) -> List[ChatSession]:
@@ -337,11 +297,24 @@ class SessionManager:
             return []
 
     def cleanup_old_sessions(self, days: int = 30):
-        """清理旧会话"""
+        """
+        清理旧会话
+        注意：这个方法只清理数据库记录，不清理Agent
+        如需清理Agent，请调用session_agent_manager.cleanup_inactive_sessions()
+        """
         try:
-            query = "DELETE FROM chat_sessions WHERE updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)"
-            affected_rows = self.db.execute_update(query, (days,))
-            logger.info(f"清理了 {affected_rows} 个旧会话")
+            # 先获取要删除的session IDs
+            select_query = "SELECT session_id FROM chat_sessions WHERE updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)"
+            old_sessions = self.db.execute_query(select_query, (days,))
+            
+            if not old_sessions:
+                logger.info("没有需要清理的旧会话")
+                return
+            
+            # 删除数据库记录
+            delete_query = "DELETE FROM chat_sessions WHERE updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)"
+            affected_rows = self.db.execute_update(delete_query, (days,))
+            logger.info(f"清理了 {affected_rows} 个旧会话（数据库记录）")
             
         except Exception as e:
             logger.error(f"清理旧会话失败: {e}")

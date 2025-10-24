@@ -122,15 +122,23 @@ docker-compose up -d
 
 | 脚本 | 功能 | 说明 |
 |------|------|------|
-| `quick-start.sh` | 快速启动 | 一键启动所有服务，自动创建环境变量文件 |
+| `quick-start.sh` | 一键部署 | 同时启动RAGFlow和AI Agent所有服务，并自动构建最新镜像 |
+| `stop-all.sh` | 停止所有服务 | 同时停止RAGFlow和AI Agent所有服务 |
 
 **使用方法**：
 ```bash
-# 克隆项目并快速启动
-git clone <your-repo-url>
-cd AIAgent
+# 一键部署所有服务
+chmod +x quick-start.sh stop-all.sh
 ./quick-start.sh
+
+# 停止所有服务
+./stop-all.sh
 ```
+
+> **💡 代码更新说明**: 
+> - `quick-start.sh` 会自动使用 `--build` 参数重新构建镜像
+> - 这确保每次运行都使用最新的代码
+> - 如果只想重启服务而不重新构建，使用 `docker-compose restart`
 
 ## 🔍 服务状态检查
 
@@ -201,6 +209,10 @@ AIAgent/
 │   │   ├── sessionManager.py # 会话管理
 │   │   └── session_agent_manager.py # 会话代理管理
 │   ├── scripts/           # 后端脚本
+│   │   ├── update_agent_prompt.py  # Agent Prompt更新脚本
+│   │   └── PROMPT_CONFIG_GUIDE.md  # Prompt配置指南
+│   ├── agent_config.yaml  # Agent Prompt配置文件
+│   ├── backups/           # 自动备份目录
 │   └── Dockerfile         # 后端Docker配置
 ├── crewaiFrontend/         # 前端服务
 │   ├── src/               # React源码
@@ -436,10 +448,246 @@ docker-compose exec backend-mysql mysql -u root -proot123 -e "SELECT 1;"
 
 ```bash
 # 清理RAGFlow中的所有会话
-python cleanup_ragflow_sessions.py
+python scripts/cleanup_ragflow_sessions.py
 ```
 
 **注意**: 需要先设置环境变量 `RAGFLOW_API_KEY`
+
+## 🤖 Ollama模型配置
+
+### 自动模型下载
+系统会自动下载以下必需的模型：
+- **bge-m3** - 用于文本嵌入和向量化
+
+### 验证模型安装
+```bash
+# 验证Ollama模型是否正确安装（本地开发环境）
+python tests/unit/verify_ollama_models.py
+
+# 验证Ollama服务连通性（CI/CD环境）
+python tests/unit/test_ollama_connectivity.py
+```
+
+### 手动下载模型
+```bash
+# 查看已安装的模型（推荐）
+docker exec ollama ollama list
+
+# 下载bge-m3模型
+docker exec ollama ollama pull bge-m3
+
+# 删除不需要的模型
+docker exec ollama ollama rm model-name
+```
+
+## 🔗 RAGFlow LLM配置
+
+RAGFlow需要配置Ollama作为embedding模型提供者才能正常工作。
+
+### 配置步骤
+
+1. **访问RAGFlow管理界面**
+   ```
+   http://localhost:80
+   ```
+
+2. **首次登录**
+   - 创建管理员账户
+   - 使用邮箱和密码登录
+
+3. **配置Ollama服务**
+   - 进入 **设置 (Settings)** → **模型管理 (Model Management)**
+   - 点击 **添加模型提供者 (Add Model Provider)**
+   - 选择 **Ollama** 类型
+
+4. **关键配置项**
+   ```
+   提供者名称: Ollama
+   API地址: http://ollama:11434
+   模型名称: bge-m3:latest
+   用途: Embedding（向量化）
+   ```
+
+   > **⚠️ 重要**: 
+   > - 必须使用 `http://ollama:11434` 而不是 `http://localhost:11434`
+   > - 在Docker网络中，容器之间通过容器名称相互访问
+   > - `localhost` 指向容器自己，而 `ollama` 是Ollama容器的hostname
+
+5. **测试连接**
+   - 点击 **测试连接 (Test Connection)** 按钮
+   - 确保显示 "连接成功" 或 "Connection Successful"
+
+6. **创建知识库**
+   - 进入 **知识库 (Knowledge Base)** 页面
+   - 创建新的知识库
+   - 上传文档并选择刚配置的 `bge-m3` 模型进行向量化
+
+### 验证配置
+
+```bash
+# 从RAGFlow容器内测试Ollama连接
+docker exec ragflow-server curl http://ollama:11434
+
+# 查看可用模型
+docker exec ragflow-server curl http://ollama:11434/api/tags
+```
+
+### 常见问题
+
+**问题**: "Connection refused" 或 "[Errno 111]"
+- **原因**: 使用了 `localhost` 而不是 `ollama`
+- **解决**: 在RAGFlow配置中将地址改为 `http://ollama:11434`
+
+**问题**: "模型不存在"
+- **原因**: Ollama中没有下载bge-m3模型
+- **解决**: 运行 `docker exec ollama ollama pull bge-m3`
+
+**问题**: RAGFlow无法访问Ollama
+- **原因**: 网络配置问题
+- **解决**: 确保使用 `quick-start.sh` 启动所有服务
+
+## 🤖 自定义AI Agent Prompt
+
+您可以轻松自定义AI客服代表的行为和回复风格，无需直接修改代码。
+
+### 📂 相关文件
+
+```
+crewaiBackend/
+├── agent_config.yaml          # ← 编辑这个文件来配置prompt
+├── crew.py                    # Agent定义（自动更新）
+├── scripts/
+│   └── update_agent_prompt.py # ← 运行这个脚本来应用配置
+└── backups/                   # 自动备份目录
+    └── crew_backup_*.py       # 备份文件
+```
+
+### 🚀 快速配置
+
+#### 1. 编辑配置文件
+
+打开 `crewaiBackend/agent_config.yaml`，可以修改以下配置：
+
+**Agent配置（定义客服的身份和性格）**
+
+- **role** - 角色定义（简短描述）
+```yaml
+role: "智能客服代表"
+```
+
+- **goal** - 目标（这个agent要达成什么）
+```yaml
+goal: "为客户提供友好、专业的服务，像真人客服一样自然回复"
+```
+
+- **backstory** - 背景故事（定义agent的性格和行为方式）
+```yaml
+backstory: |
+  你是一位经验丰富的客服代表，具备强大的语言识别和回复能力。
+  你的特点：
+  - 能够自动识别客户使用的语言（中文、英文、其他语言）
+  - 使用相同的语言进行自然、亲切的回复
+  ...
+```
+
+**Task配置（定义具体的服务要求和行为规范）**
+
+- **description_template** - 任务描述模板（详细的服务要求和注意事项）
+```yaml
+description_template: |
+  作为智能客服代表，请为客户提供专业、友好的服务。
+  
+  客户问题：{customer_input}
+  知识库信息：{retrieved_summary}
+  对话历史：{context_info}
+  
+  重要提醒：
+  - 你的回答必须像真人客服一样自然
+  - 不要提及"知识库"、"系统"等技术词汇
+  ...
+```
+
+- **expected_output** - 期望输出（描述理想的回复效果）
+```yaml
+expected_output: "像真人客服一样的自然回复，使用客户相同的语言"
+```
+
+#### 2. 运行更新脚本
+
+保存配置文件后，运行更新脚本：
+
+```bash
+# 从项目根目录
+python crewaiBackend/scripts/update_agent_prompt.py
+```
+
+脚本会：
+- ✅ 读取您的配置（Agent + Task）
+- 💾 自动备份原始文件
+- 📝 更新 `crew.py` 中的 Agent 和 Task 定义
+- 🔍 验证更新是否成功
+- 🔗 自动从RAGFlow获取chat_id并更新到`.env`文件
+
+#### 3. 重启服务
+
+更新完成后，重启后端服务以应用更改：
+
+```bash
+# Docker 环境
+docker-compose restart aiagent-backend
+
+# 或重新部署
+./stop-all.sh
+./quick-start.sh
+```
+
+> **💡 自动配置RAGFlow**: 脚本会自动从RAGFlow获取第一个可用的chat（对话助手）ID，并更新到`.env`文件中的`RAGFLOW_CHAT_ID`。这样可以确保Agent使用正确的知识库进行对话。如果您想使用特定的chat，可以在RAGFlow Web界面查看chat列表，然后手动修改`.env`文件中的`RAGFLOW_CHAT_ID`。
+
+### 🔧 故障排除
+
+**问题：脚本运行失败**
+```bash
+# 确保安装了 PyYAML
+pip install pyyaml
+
+# 检查文件路径是否正确
+ls crewaiBackend/agent_config.yaml
+ls crewaiBackend/crew.py
+```
+
+**问题：配置未生效**
+```bash
+# 1. 检查是否重启了服务
+docker-compose restart aiagent-backend
+
+# 2. 查看后端日志
+docker logs aiagent-backend -f
+
+# 3. 验证 crew.py 是否更新
+cat crewaiBackend/crew.py | grep "customer_service_agent"
+```
+
+**问题：需要回滚**
+```bash
+# 查看备份文件
+ls crewaiBackend/backups/
+
+# 恢复备份（替换 TIMESTAMP 为实际时间戳）
+cp crewaiBackend/backups/crew_backup_TIMESTAMP.py crewaiBackend/crew.py
+
+# 重启服务
+docker-compose restart aiagent-backend
+```
+
+### 🎯 最佳实践
+
+1. **先备份**：脚本会自动备份，但重要更改前建议手动备份
+2. **小步迭代**：每次只修改一小部分，观察效果
+3. **测试验证**：更新后立即测试几个对话场景
+4. **版本控制**：将 `agent_config.yaml` 加入Git，记录配置变更
+5. **文档记录**：在配置文件中添加注释，说明修改原因
+
+> 💡 **提示**: 好的prompt配置是一个迭代过程，根据实际使用反馈持续优化！
 
 ## 🆘 获取帮助
 

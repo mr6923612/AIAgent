@@ -1,9 +1,23 @@
 # -*- coding: utf-8 -*-
 """
 会话Agent管理器
+
+架构说明：
 - RAGFlow和SQL在程序启动时拉起，全局共享
-- Agent在session建立时拉起，session结束时释放
+- Agent在session第一次对话时创建，session删除时释放
 - session存在时复用Agent，避免重复创建
+
+Session ID映射关系：
+- 一个应用session_id对应一个RAGFlow session_id（一对一映射）
+- RAGFlow session在第一次对话时由SessionAgent自动创建
+- 删除应用session时，自动删除对应的RAGFlow session
+
+生命周期管理：
+1. 创建会话：只创建数据库记录，不创建RAGFlow会话
+2. 第一次对话：创建SessionAgent，自动创建RAGFlow会话
+3. 后续对话：复用已有的SessionAgent和RAGFlow会话
+4. 删除会话：先释放Agent（删除RAGFlow会话），再删除数据库记录
+5. 清理非活跃会话：自动释放Agent并删除RAGFlow会话
 """
 
 import threading
@@ -76,17 +90,23 @@ class SessionAgentManager:
     
     def release_agent(self, session_id: str):
         """
-        释放会话Agent
+        释放会话Agent，同时删除对应的RAGFlow会话
         
         Args:
             session_id: 会话ID
         """
         with self.lock:
             if session_id in self.session_agents:
+                agent = self.session_agents[session_id]
+                
+                # 清理资源（包括删除RAGFlow会话）
+                agent.cleanup()
+                
+                # 从字典中移除
                 del self.session_agents[session_id]
-                logger.info(f"🗑️ 释放会话 {session_id} 的Agent，当前会话数: {len(self.session_agents)}")
+                logger.info(f"释放会话 {session_id} 的Agent，当前会话数: {len(self.session_agents)}")
             else:
-                logger.warning(f"⚠️ 尝试释放不存在的会话 {session_id}")
+                logger.warning(f"尝试释放不存在的会话 {session_id}")
     
     def get_session_status(self) -> Dict:
         """获取所有会话状态"""
@@ -98,7 +118,8 @@ class SessionAgentManager:
                     session_id: {
                         'created_at': agent.created_at.isoformat(),
                         'last_used': agent.last_used.isoformat(),
-                        'age_seconds': (datetime.now() - agent.created_at).total_seconds()
+                        'age_seconds': (datetime.now() - agent.created_at).total_seconds(),
+                        'ragflow_session_id': agent.ragflow_session_id or 'Not created yet'
                     }
                     for session_id, agent in self.session_agents.items()
                 }
@@ -106,7 +127,7 @@ class SessionAgentManager:
     
     def cleanup_inactive_sessions(self, max_age_seconds: int = 1800):
         """
-        清理非活跃会话
+        清理非活跃会话，同时删除对应的RAGFlow会话
         
         Args:
             max_age_seconds: 最大非活跃时间（秒）
@@ -114,16 +135,20 @@ class SessionAgentManager:
         with self.lock:
             now = datetime.now()
             inactive_sessions = [
-                session_id for session_id, agent in self.session_agents.items()
+                (session_id, agent) for session_id, agent in self.session_agents.items()
                 if (now - agent.last_used).total_seconds() > max_age_seconds
             ]
             
-            for session_id in inactive_sessions:
+            for session_id, agent in inactive_sessions:
+                # 清理资源（包括删除RAGFlow会话）
+                agent.cleanup()
+                
+                # 从字典中移除
                 del self.session_agents[session_id]
-                logger.info(f"🧹 清理非活跃会话 {session_id}")
+                logger.info(f"清理非活跃会话 {session_id}")
             
             if inactive_sessions:
-                logger.info(f"🧹 清理完成，释放 {len(inactive_sessions)} 个非活跃会话")
+                logger.info(f"清理完成，释放 {len(inactive_sessions)} 个非活跃会话")
 
 
 class SessionAgent:
@@ -135,6 +160,9 @@ class SessionAgent:
         self.ragflow_client = ragflow_client
         self.created_at = datetime.now()
         self.last_used = datetime.now()
+        
+        # RAGFlow会话ID（一个应用session对应一个RAGFlow session）
+        self.ragflow_session_id = None
         
         # 创建Agent（只创建一次）
         self.agents = self._create_agents()
@@ -163,31 +191,15 @@ class SessionAgent:
             allow_delegation=False,
             llm=self.llm
         )
-        
-        # 知识检索Agent
-        knowledge_agent = Agent(
-            role="知识检索专家",
-            goal="从知识库中检索相关信息，为客服提供准确答案",
-            backstory="""你是一位专业的知识检索专家，擅长从大量信息中快速找到相关内容。
-            你的职责：
-            - 根据客户问题检索相关知识
-            - 提供准确、相关的信息
-            - 确保信息的时效性和准确性
-            - 为客服代表提供决策支持""",
-            verbose=True,
-            allow_delegation=False,
-            llm=self.llm
-        )
-        
+
         return {
-            'customer_service': customer_service_agent,
-            'knowledge': knowledge_agent
+            'customer_service': customer_service_agent
         }
     
     def _create_crew(self):
         """创建Crew（只创建一次）"""
         return Crew(
-            agents=[self.agents['customer_service'], self.agents['knowledge']],
+            agents=[self.agents['customer_service']],
             tasks=[],  # 任务在kickoff时动态创建
             process=Process.sequential,
             verbose=True
@@ -214,36 +226,130 @@ class SessionAgent:
         customer_input = inputs.get('customer_input', '')
         session_id = inputs.get('session_id', '')
         
-        # 知识检索任务
-        knowledge_task = Task(
-            description=f"""
-            请根据客户的问题检索相关知识：
-            客户问题：{customer_input}
-            
-            请使用RAGFlow知识库检索相关信息，为客服代表提供准确的答案。
-            """,
-            agent=self.agents['knowledge'],
-            expected_output="检索到的相关知识信息"
-        )
+        # 1. 先通过RAGFlow获取知识
+        ragflow_result = self._call_ragflow(customer_input, session_id)
         
-        # 客服回复任务
+        # 2. 创建客服回复任务（将RAGFlow结果注入到描述中）
         service_task = Task(
             description=f"""
-            基于检索到的知识，为客户提供专业、友好的回复：
+            为客户提供专业、友好的回复。
+            
             客户问题：{customer_input}
             会话ID：{session_id}
+            知识库信息：{ragflow_result}
             
-            请提供：
+            请基于知识库信息提供：
             1. 自然、友好的回复
-            2. 基于检索知识的准确答案
+            2. 准确的答案
             3. 如果信息不足，提供合理的建议
             4. 保持专业和耐心的态度
+            5. 像真人客服一样自然，不要提及"知识库"、"系统"等技术词汇
             """,
             agent=self.agents['customer_service'],
             expected_output="专业的客服回复"
         )
         
-        return [knowledge_task, service_task]
+        return [service_task]
+    
+    def _call_ragflow(self, customer_input: str, session_id: str) -> str:
+        """
+        调用RAGFlow进行知识检索
+        
+        Args:
+            customer_input: 客户输入
+            session_id: 会话ID
+            
+        Returns:
+            检索到的知识摘要
+        """
+        try:
+            logger.info(f"[会话:{session_id[:8]}] 开始调用RAGFlow进行知识检索...")
+            
+            # 获取或创建RAGFlow会话
+            ragflow_session_id = self._get_ragflow_session_id(session_id)
+            logger.info(f"[会话:{session_id[:8]}] 使用RAGFlow会话: {ragflow_session_id}")
+            
+            # 调用RAGFlow API
+            logger.info(f"[会话:{session_id[:8]}] 向RAGFlow发送问题: {customer_input}")
+            answer_data = self.ragflow_client.converse(
+                chat_id=DEFAULT_CHAT_ID,
+                question=customer_input,
+                session_id=ragflow_session_id
+            )
+            
+            # 提取回答
+            answer = answer_data.get('answer', '')
+            reference = answer_data.get('reference', {})
+            
+            # 构建摘要
+            summary_parts = []
+            if answer:
+                summary_parts.append(f"RAGFlow回答: {answer}")
+                logger.info(f"[会话:{session_id[:8]}] RAGFlow返回答案，长度: {len(answer)}字符")
+            
+            if reference and reference.get('chunks'):
+                chunks = reference['chunks']
+                summary_parts.append(f"相关文档片段数: {len(chunks)}")
+                logger.info(f"[会话:{session_id[:8]}] 找到{len(chunks)}个相关文档片段")
+                for i, chunk in enumerate(chunks[:2]):  # 只显示前2个片段
+                    content = chunk.get('content', '')[:150]
+                    if content:
+                        summary_parts.append(f"片段{i+1}: {content}...")
+            
+            result = "\n".join(summary_parts) if summary_parts else "未找到相关信息"
+            logger.info(f"[会话:{session_id[:8]}] RAGFlow检索完成")
+            return result
+            
+        except Exception as e:
+            logger.error(f"[会话:{session_id[:8]}] 调用RAGFlow失败: {e}")
+            import traceback
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            return f"知识检索失败: {str(e)}"
+    
+    def _get_ragflow_session_id(self, session_id: str) -> str:
+        """
+        获取或创建RAGFlow会话ID（一个应用session对应一个RAGFlow session）
+        
+        Args:
+            session_id: 应用会话ID
+            
+        Returns:
+            RAGFlow会话ID
+        """
+        # 如果已有RAGFlow会话ID，直接返回
+        if self.ragflow_session_id:
+            logger.info(f"[会话:{session_id[:8]}] 复用已有RAGFlow会话: {self.ragflow_session_id}")
+            return self.ragflow_session_id
+        
+        # 创建新的RAGFlow会话
+        try:
+            logger.info(f"[会话:{session_id[:8]}] 创建新的RAGFlow会话...")
+            session_data = self.ragflow_client.create_session(
+                chat_id=DEFAULT_CHAT_ID,
+                name=f"会话_{session_id[:8]}",
+                user_id=f"user_{session_id}"
+            )
+            self.ragflow_session_id = session_data.get('id', '')
+            logger.info(f"[会话:{session_id[:8]}] RAGFlow会话创建成功: {self.ragflow_session_id}")
+            return self.ragflow_session_id
+        except Exception as e:
+            logger.error(f"[会话:{session_id[:8]}] 创建RAGFlow会话失败: {e}")
+            return ""
+    
+    def cleanup(self):
+        """
+        清理会话资源，包括删除对应的RAGFlow会话
+        """
+        if self.ragflow_session_id:
+            try:
+                logger.info(f"[会话:{self.session_id[:8]}] 删除RAGFlow会话: {self.ragflow_session_id}")
+                self.ragflow_client.delete_session(
+                    chat_id=DEFAULT_CHAT_ID,
+                    session_ids=[self.ragflow_session_id]
+                )
+                logger.info(f"[会话:{self.session_id[:8]}] RAGFlow会话删除成功")
+            except Exception as e:
+                logger.error(f"[会话:{self.session_id[:8]}] 删除RAGFlow会话失败: {e}")
 
 
 # 全局会话Agent管理器实例

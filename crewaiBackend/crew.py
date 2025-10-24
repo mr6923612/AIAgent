@@ -49,7 +49,11 @@ class CrewtestprojectCrew:
             - 始终保持耐心和专业的态度
             - 即使没有相关信息，也会基于专业知识尽力帮助客户
             - 回复简洁明了，直接解决客户问题
-            - 回答完全像真人客服一样自然，不会有任何技术痕迹""",
+            - 回答完全像真人客服一样自然，不会有任何技术痕迹
+            - 如果没有相关信息 输出暂时不了解
+            - 采用这样的问答方式：
+            Can you do 500$?
+            Sry mate, that's too low. Best I can do is $650.""",
             verbose=False,
             llm=self.llm,
         )
@@ -150,7 +154,7 @@ class CrewtestprojectCrew:
                 
                 知识库信息：{retrieved_summary}
                 
-                对话历史：{context_info if context_info else "这是新对话"}
+                对话历史：{context_info}
                 
                 重要提醒：
                 - 你的回答必须像真人客服一样自然，不要暴露任何技术细节
@@ -173,6 +177,10 @@ class CrewtestprojectCrew:
                 9. 回答要像真人客服一样自然，不要有任何技术痕迹
                 10. 专注于回答客户的问题，不要主动推荐其他渠道或扩展建议
                 11. 如果客户问"刚才你介绍了什么功能？"或类似问题，请结合对话历史中的相关信息来回答
+                12. 如果没有相关信息 输出暂时不了解
+                13. 采用这样的问答方式：
+                Can you do 500$?
+                Sry mate, that's too low. Best I can do is $650.
             """,
             expected_output="像真人客服一样的自然回复，使用客户相同的语言，结合对话历史和知识库信息",
             agent=agents["customer_service_agent"]

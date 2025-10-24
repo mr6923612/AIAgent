@@ -26,5 +26,5 @@ EXPOSE 8012
 ENV PYTHONPATH=/app
 ENV FLASK_APP=main.py
 
-# 启动命令
-CMD ["python", "main.py"]
+# 启动命令 - 使用python -m来正确处理包导入
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8012"]
