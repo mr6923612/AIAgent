@@ -42,16 +42,19 @@ class DatabaseManager:
             self.connection = None
     
     def _check_connection(self):
-        """检查数据库连接是否有效"""
+        """检查数据库连接是否有效，如果断开则尝试重连"""
         if not self.connection:
-            return False
+            logger.info("数据库连接不存在，尝试重新连接...")
+            self._connect()
+            return self.connection is not None
+        
         try:
             self.connection.ping(reconnect=True)
             return True
         except Exception as e:
-            logger.warning(f"数据库连接检查失败: {e}")
-            self.connection = None
-            return False
+            logger.warning(f"数据库连接检查失败: {e}，尝试重新连接...")
+            self._connect()
+            return self.connection is not None
     
     def _create_tables(self):
         """创建数据库表"""

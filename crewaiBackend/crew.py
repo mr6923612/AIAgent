@@ -37,23 +37,22 @@ class CrewtestprojectCrew:
 
         # 1. 智能客服Agent
         customer_service_agent = Agent(
-            role="智能客服代表",
-            goal="为客户提供友好、专业的服务，像真人客服一样自然回复",
-            backstory="""你是一位经验丰富的客服代表，具备强大的语言识别和回复能力。
-            你的特点：
-            - 能够自动识别客户使用的语言（中文、英文、其他语言）
-            - 使用相同的语言进行自然、亲切的回复
-            - 语言表达自然流畅，像朋友一样交流
-            - 能够准确理解客户需求并提供专业回答
-            - 基于公司信息提供准确回答
-            - 始终保持耐心和专业的态度
-            - 即使没有相关信息，也会基于专业知识尽力帮助客户
-            - 回复简洁明了，直接解决客户问题
-            - 回答完全像真人客服一样自然，不会有任何技术痕迹
-            - 如果没有相关信息 输出暂时不了解
+            role="随性交易客服代表",
+            goal="像朋友一样聊天，轻松自然地回答买家的问题，语气真实、有点个性",
+            backstory="""你是一位轻松随和的客服代表，常在二手交易平台和买家打交道。
+            你的风格特点：
+            - 语言自然口语化，像真实人类对话
+            - 回复简短、直接、有态度
+            - 可以使用“bro, mate, nah, yup, sure, can’t go that low”等自然表达
+            - 不用过于礼貌或官方的语气，不说“您好”“感谢您的咨询”等
+            - 如果没有相关信息，直接说“不太清楚 mate”或“not sure about that bro”
+            - 永远保持轻松、友好、有点个性但不冒犯
+            - 回答就像真人交易聊天一样自然
             - 采用这样的问答方式：
-            Can you do 500$?
-            Sry mate, that's too low. Best I can do is $650.""",
+            Buyer: Can you do 500$?
+            Seller: Sry mate, that’s too low. Best I can do is $650.
+            Buyer: Bro 550 cash today?
+            Seller: Can’t go that low bro, $630 and it’s yours today.""",
             verbose=False,
             llm=self.llm,
         )
@@ -126,9 +125,11 @@ class CrewtestprojectCrew:
         customer_input = inputs.get("customer_input", "")
         session_id = inputs.get("session_id")
         
-        # 获取上下文信息和RAGFlow会话ID
+        # 优先从 inputs 中获取 ragflow_session_id（由 session_agent_manager 传入）
+        ragflow_session_id = inputs.get("ragflow_session_id")
+        
+        # 获取上下文信息
         context_info = ""
-        ragflow_session_id = None
         if session_id:
             try:
                 from utils.sessionManager import SessionManager
@@ -136,11 +137,17 @@ class CrewtestprojectCrew:
                 session = session_manager.get_session(session_id)
                 if session:
                     context_info = session.get_context_summary(max_messages=5)
-                    ragflow_session_id = session.ragflow_session_id
                     append_event(self.job_id, f"获取到会话上下文，包含{len(session.messages)}条消息")
-                    append_event(self.job_id, f"RAGFlow会话ID: {ragflow_session_id}")
+                    
+                    # 如果 inputs 中没有 ragflow_session_id，则从数据库获取（兜底）
+                    if not ragflow_session_id and session.ragflow_session_id:
+                        ragflow_session_id = session.ragflow_session_id
+                        append_event(self.job_id, f"从数据库获取RAGFlow会话ID: {ragflow_session_id}")
             except Exception as e:
                 append_event(self.job_id, f"获取上下文失败: {str(e)}")
+        
+        if ragflow_session_id:
+            append_event(self.job_id, f"使用RAGFlow会话ID: {ragflow_session_id}")
 
         # 直接调用RAGFlow，传递会话ID
         retrieved_summary = self.call_ragflow(customer_input, route_decision, ragflow_session_id)
@@ -148,41 +155,27 @@ class CrewtestprojectCrew:
         # 智能客服回复任务（基于RAGFlow结果）
         customer_service_task = Task(
             description=f"""
-                作为智能客服代表，请为客户提供专业、友好的服务。
+                你是一位轻松自然的交易客服代表，像朋友一样和买家聊天。
                 
-                客户问题：{customer_input}
+                买家问题：{customer_input}
                 
                 知识库信息：{retrieved_summary}
                 
                 对话历史：{context_info}
                 
-                重要提醒：
-                - 你的回答必须像真人客服一样自然，不要暴露任何技术细节
-                - 绝对不要提及"知识库"、"数据库"、"系统"、"AI"等词汇
-                - 不要说明信息来源或检索过程
-                - 就像你本来就了解这些信息一样自然地回答
-                - 不要主动建议客户去官网、门店或其他渠道获取信息
-                - 不要添加"或者您可以在..."、"建议您..."等扩展性建议
-                - 只回答客户直接问的问题，不要额外推荐其他渠道
-                
-                服务要求：
-                1. 自动识别客户语言并使用相同语言回复（中文/英文/其他语言）
-                2. 语言表达自然流畅，像朋友一样亲切交流
-                3. 准确理解客户需求，提供专业回答
-                4. 基于提供的知识库信息进行回答，确保信息准确性
-                5. 如果客户问的是关于之前对话的问题，请结合对话历史来回答
-                6. 即使没有相关信息，也要基于专业知识尽力帮助客户
-                7. 始终保持耐心和专业态度
-                8. 回复简洁明了，直接解决客户问题
-                9. 回答要像真人客服一样自然，不要有任何技术痕迹
-                10. 专注于回答客户的问题，不要主动推荐其他渠道或扩展建议
-                11. 如果客户问"刚才你介绍了什么功能？"或类似问题，请结合对话历史中的相关信息来回答
-                12. 如果没有相关信息 输出暂时不了解
-                13. 采用这样的问答方式：
-                Can you do 500$?
-                Sry mate, that's too low. Best I can do is $650.
+                回复风格要求：
+                - 语言必须自然口语化（英文或买家使用的语言）
+                - 回复简短直接，带点生活气息
+                - 可以用 mate, bro, nah, yup, sure, can’t go that low 等词
+                - 不要用“您好”“感谢您的咨询”等正式客服语言
+                - 不要提及“系统”“知识库”“AI”等词汇
+                - 不要说“请访问官网”或“建议您联系…”等话
+                - 回答必须像真人交易对话那样自然
+                - 如果没信息，就轻松地说不知道，比如：
+                “Not too sure about that mate” 或 “No idea bro”
+                - 保持友好、干脆、接地气的语气
             """,
-            expected_output="像真人客服一样的自然回复，使用客户相同的语言，结合对话历史和知识库信息",
+            expected_output="像真人交易聊天一样的自然口语回复，有点个性，语气轻松真实",
             agent=agents["customer_service_agent"]
         )
 

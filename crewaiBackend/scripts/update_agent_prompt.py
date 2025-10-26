@@ -27,9 +27,24 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# 加载 .env 文件
+backend_dir = Path(__file__).parent.parent
+env_file = backend_dir / ".env"
+if env_file.exists():
+    with open(env_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ[key.strip()] = value.strip()
+
 # 导入RAGFlow客户端
 try:
-    from crewaiBackend.utils.ragflow_client import create_ragflow_client
+    # 尝试两种导入方式，适配不同的运行环境
+    try:
+        from crewaiBackend.utils.ragflow_client import create_ragflow_client
+    except ImportError:
+        from utils.ragflow_client import create_ragflow_client
 except ImportError:
     print("[WARNING] 无法导入RAGFlow客户端，将跳过chat_id更新")
     create_ragflow_client = None
@@ -310,8 +325,12 @@ class AgentPromptUpdater:
             print(f"[ERROR] 更新.env文件失败: {e}")
             return False
     
-    def run(self):
-        """执行更新流程"""
+    def run(self, auto_yes=False):
+        """执行更新流程
+        
+        Args:
+            auto_yes: 是否自动确认（跳过交互式询问）
+        """
         print("\n" + "="*60)
         print("AI Agent Prompt 更新工具")
         print("="*60 + "\n")
@@ -331,13 +350,16 @@ class AgentPromptUpdater:
         print(f"  描述模板: {task_config.get('description_template', '')[:80]}...")
         print(f"  期望输出: {task_config.get('expected_output')}")
         
-        # 2. 询问是否继续
-        print("\n[WARNING] 即将更新 crew.py 文件 (Agent + Task)")
-        response = input("是否继续? (y/n): ").lower().strip()
-        
-        if response != 'y':
-            print("[CANCEL] 操作已取消")
-            sys.exit(0)
+        # 2. 询问是否继续（除非设置了auto_yes）
+        if not auto_yes:
+            print("\n[WARNING] 即将更新 crew.py 文件 (Agent + Task)")
+            response = input("是否继续? (y/n): ").lower().strip()
+            
+            if response != 'y':
+                print("[CANCEL] 操作已取消")
+                sys.exit(0)
+        else:
+            print("\n[AUTO] 自动确认模式，跳过交互式询问")
         
         # 3. 备份原文件
         if not self.backup_crew_file():
@@ -375,9 +397,17 @@ class AgentPromptUpdater:
 
 def main():
     """主函数"""
+    import argparse
+    
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='AI Agent Prompt 更新工具')
+    parser.add_argument('--yes', '-y', action='store_true', 
+                        help='自动确认，跳过交互式询问')
+    args = parser.parse_args()
+    
     try:
         updater = AgentPromptUpdater()
-        updater.run()
+        updater.run(auto_yes=args.yes)
     except KeyboardInterrupt:
         print("\n\n[CANCEL] 操作已取消")
         sys.exit(1)

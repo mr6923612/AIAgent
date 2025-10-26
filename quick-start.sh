@@ -21,21 +21,39 @@ if ! docker info > /dev/null 2>&1; then
 fi
 echo -e "${GREEN}Docker运行正常${NC}"
 
-# 检查环境变量文件
+# 检查和配置环境变量文件
+echo -e "${BLUE}检查环境变量配置...${NC}"
 if [ ! -f "crewaiBackend/.env" ]; then
     echo -e "${YELLOW}环境变量文件不存在，正在创建...${NC}"
     if [ -f "crewaiBackend/env.template" ]; then
         cp crewaiBackend/env.template crewaiBackend/.env
         echo -e "${GREEN}环境变量文件已创建${NC}"
-        echo -e "${YELLOW}请编辑 crewaiBackend/.env 文件，填入必要的配置${NC}"
-        echo -e "${YELLOW}特别是 GOOGLE_API_KEY 和 RAGFLOW_API_KEY${NC}"
-        echo ""
-        echo -e "${YELLOW}按任意键继续（确保已配置好环境变量）...${NC}"
-        read -n 1 -s
     else
         echo -e "${RED}env.template 文件不存在${NC}"
         exit 1
     fi
+fi
+
+# 更新 .env 文件中的 Docker 环境配置
+echo -e "${BLUE}更新 Docker 环境配置...${NC}"
+sed -i.bak 's|RAGFLOW_BASE_URL=http://localhost:80|RAGFLOW_BASE_URL=http://ragflow-server:80|g' crewaiBackend/.env
+sed -i.bak 's|MYSQL_HOST=localhost|MYSQL_HOST=backend-mysql|g' crewaiBackend/.env
+sed -i.bak 's|MYSQL_PORT=3307|MYSQL_PORT=3306|g' crewaiBackend/.env
+echo -e "${GREEN}Docker 环境配置已更新${NC}"
+
+# 检查 API 密钥配置
+if grep -q "your_google_api_key_here" crewaiBackend/.env || grep -q "your_ragflow_api_key_here" crewaiBackend/.env; then
+    echo ""
+    echo -e "${YELLOW}⚠️  警告: 检测到未配置的 API 密钥！${NC}"
+    echo -e "${YELLOW}请编辑 crewaiBackend/.env 文件，填入以下配置：${NC}"
+    echo -e "${YELLOW}  - GOOGLE_API_KEY: 访问 https://aistudio.google.com/app/apikey 获取${NC}"
+    echo -e "${YELLOW}  - RAGFLOW_API_KEY: 在 RAGFlow Web 界面获取${NC}"
+    echo ""
+    echo -e "${YELLOW}或者在服务启动后运行配置脚本：${NC}"
+    echo -e "${YELLOW}  cd crewaiBackend && python scripts/update_agent_prompt.py --yes${NC}"
+    echo ""
+    echo -e "${YELLOW}按任意键继续启动服务...${NC}"
+    read -n 1 -s
 fi
 
 # 创建必要的目录

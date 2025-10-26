@@ -35,8 +35,9 @@ class RAGFlowClient:
             base_url: RAGFlow服务的基础URL，默认从配置获取
             api_key: API密钥，默认从配置获取
         """
-        self.base_url = base_url or os.getenv('RAGFLOW_BASE_URL', DEFAULT_BASE_URL)
-        self.api_key = api_key or os.getenv('RAGFLOW_API_KEY', DEFAULT_API_KEY)
+        # 优先使用环境变量，然后是参数，最后是默认值
+        self.base_url = base_url or os.getenv('RAGFLOW_BASE_URL') or DEFAULT_BASE_URL
+        self.api_key = api_key or os.getenv('RAGFLOW_API_KEY') or DEFAULT_API_KEY
         
         if not self.api_key:
             raise ValueError("RAGFlow API key is required. Set RAGFLOW_API_KEY environment variable.")
@@ -273,6 +274,46 @@ class RAGFlowClient:
             删除结果字典
         """
         return self.delete_sessions(chat_id, [session_id], max_retries)
+    
+    def list_sessions(self, chat_id: str, page: int = 1, page_size: int = 1000) -> list:
+        """
+        获取指定chat的所有sessions
+        
+        Args:
+            chat_id: 聊天助手的ID
+            page: 页码，从1开始
+            page_size: 每页数量，默认1000（获取所有）
+            
+        Returns:
+            会话列表（list）或空列表
+        """
+        url = f"{self.base_url}/api/v1/chats/{chat_id}/sessions"
+        params = {
+            "page": page,
+            "page_size": page_size
+        }
+        
+        try:
+            response = requests.get(url, headers=self.headers, params=params, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('code') == 0:
+                data = result.get('data', [])
+                # RAGFlow API可能返回list或dict，统一处理
+                if isinstance(data, list):
+                    return data
+                elif isinstance(data, dict):
+                    return data.get('items', [])
+                else:
+                    return []
+            else:
+                logger.error(f"获取会话列表失败: {result.get('message')}")
+                return []
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"获取会话列表请求失败: {e}")
+            return []
     
     def list_chats(self, page: int = 1, page_size: int = 30, orderby: str = "create_time", desc: bool = True):
         """

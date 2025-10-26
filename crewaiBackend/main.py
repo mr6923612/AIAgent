@@ -31,13 +31,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 确保print也能正常输出
-import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
-print("=== AI Agent 后端服务启动 ===")
-print(f"Python版本: {sys.version}")
-print(f"当前工作目录: {os.getcwd()}")
-print("=" * 40)
+logger.info("=== AI Agent 后端服务启动 ===")
+logger.info(f"Python版本: {sys.version}")
+logger.info(f"当前工作目录: {os.getcwd()}")
+logger.info("=" * 40)
 
 # 导入配置文件
 try:
@@ -46,7 +45,7 @@ try:
     LLM_TYPE = config.LLM_TYPE
     PORT = config.PORT
 except ImportError:
-    print("警告: 未找到config.py文件，请复制config.py.template为config.py并配置API密钥")
+    logger.warning("未找到config.py文件，请复制config.py.template为config.py并配置API密钥")
     # 使用默认值
     os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
     os.environ["RAGFLOW_BASE_URL"] = os.getenv("RAGFLOW_BASE_URL", "http://localhost:80")
@@ -90,16 +89,6 @@ def periodic_cleanup():
 # 启动后台清理线程
 cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
 cleanup_thread.start()
-
-
-def create_ragflow_client():
-    """创建RAGFlow客户端"""
-    try:
-        from utils.ragflow_client import create_ragflow_client
-        return create_ragflow_client()
-    except Exception as e:
-        logger.error(f"创建RAGFlow客户端失败: {e}")
-        return None
 
 
 def handle_api_error(error_msg: str, status_code: int = 500):
@@ -167,7 +156,7 @@ def kickoff_crew(job_id, inputs):
     session_id = inputs.get('session_id', 'unknown')
     session_prefix = f"[会话:{session_id[:8]}]" if session_id != 'unknown' else "[会话:unknown]"
     
-    print(f"{session_prefix} 开始处理任务 {job_id}")
+    logger.info(f"{session_prefix} 开始处理任务 {job_id}")
     
     try:
         # 验证输入数据
@@ -179,7 +168,7 @@ def kickoff_crew(job_id, inputs):
         
         # 执行分析
         results = session_agent.kickoff(inputs)
-        print(f"{session_prefix} 任务 {job_id} 分析完成")
+        logger.info(f"{session_prefix} 任务 {job_id} 分析完成")
         
         # 更新任务状态为完成
         with jobs_lock:
@@ -220,7 +209,7 @@ def run_crew():
         thread = Thread(target=kickoff_crew, args=(job_id, inputs))
         thread.start()
         
-        print(f"{session_prefix} 任务 {job_id} 已启动异步处理")
+        logger.info(f"{session_prefix} 任务 {job_id} 已启动异步处理")
         return jsonify({"job_id": job_id}), 202
         
     except ValueError as e:
