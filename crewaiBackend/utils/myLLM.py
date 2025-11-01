@@ -1,7 +1,7 @@
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 导入配置
+# Import configuration
 try:
     from ..config import config
     GOOGLE_CHAT_MODEL = config.LLM_MODEL
@@ -16,18 +16,18 @@ except ImportError:
     LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4000"))
     LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "60"))
 
-# 模型初始化函数
+# Model initialization function
 def my_llm(llmType):
-    """初始化LLM模型，使用Google Chat API"""
-    print(f"正在初始化Google Chat模型: {GOOGLE_CHAT_MODEL}")
-    print(f"Google API密钥: {GOOGLE_CHAT_API_KEY[:20]}...")
-    print(f"模型参数: temperature={LLM_TEMPERATURE}, max_tokens={LLM_MAX_TOKENS}, timeout={LLM_TIMEOUT}")
+    """Initialize LLM model using Google Chat API"""
+    print(f"Initializing Google Chat model: {GOOGLE_CHAT_MODEL}")
+    print(f"Google API key: {GOOGLE_CHAT_API_KEY[:20]}...")
+    print(f"Model parameters: temperature={LLM_TEMPERATURE}, max_tokens={LLM_MAX_TOKENS}, timeout={LLM_TIMEOUT}")
     
-    # 验证API密钥
+    # Validate API key
     if not GOOGLE_CHAT_API_KEY:
-        raise ValueError("Google API密钥未配置，请在config.py中设置GOOGLE_API_KEY")
+        raise ValueError("Google API key not configured, please set GOOGLE_API_KEY in config.py")
     
-    # 使用Google Chat API
+    # Use Google Chat API
     llm = ChatGoogleGenerativeAI(
         model=GOOGLE_CHAT_MODEL,
         google_api_key=GOOGLE_CHAT_API_KEY,

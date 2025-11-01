@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-AI Agent Prompt 更新脚本
+AI Agent Prompt Update Script
 
-功能：
-1. 读取 agent_config.yaml 配置文件
-2. 自动更新 crew.py 中的 customer_service_agent 配置
-3. 备份原始文件
-4. 验证更新是否成功
+Functions:
+1. Read agent_config.yaml configuration file
+2. Automatically update customer_service_agent configuration in crew.py
+3. Backup original file
+4. Verify if update was successful
 
-使用方法：
+Usage:
     python scripts/update_agent_prompt.py
     
-或者从项目根目录：
+Or from project root:
     python crewaiBackend/scripts/update_agent_prompt.py
 """
 
@@ -23,11 +23,11 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
+# Add project root directory to Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# 加载 .env 文件
+# Load .env file
 backend_dir = Path(__file__).parent.parent
 env_file = backend_dir / ".env"
 if env_file.exists():
@@ -38,20 +38,20 @@ if env_file.exists():
                 key, value = line.split('=', 1)
                 os.environ[key.strip()] = value.strip()
 
-# 导入RAGFlow客户端
+# Import RAGFlow client
 try:
-    # 尝试两种导入方式，适配不同的运行环境
+    # Try two import methods to adapt to different runtime environments
     try:
         from crewaiBackend.utils.ragflow_client import create_ragflow_client
     except ImportError:
         from utils.ragflow_client import create_ragflow_client
 except ImportError:
-    print("[WARNING] 无法导入RAGFlow客户端，将跳过chat_id更新")
+    print("[WARNING] Unable to import RAGFlow client, will skip chat_id update")
     create_ragflow_client = None
 
 
 class AgentPromptUpdater:
-    """Agent Prompt 更新器"""
+    """Agent Prompt Updater"""
     
     def __init__(self):
         self.script_dir = Path(__file__).parent
@@ -64,11 +64,11 @@ class AgentPromptUpdater:
         self.env_template = self.backend_dir / "env.template"
         
     def load_config(self):
-        """加载配置文件"""
-        print(f"[INFO] 正在读取配置文件: {self.config_file}")
+        """Load configuration file"""
+        print(f"[INFO] Reading configuration file: {self.config_file}")
         
         if not self.config_file.exists():
-            print(f"[ERROR] 错误: 配置文件不存在: {self.config_file}")
+            print(f"[ERROR] Configuration file does not exist: {self.config_file}")
             sys.exit(1)
         
         try:
@@ -76,34 +76,34 @@ class AgentPromptUpdater:
                 config = yaml.safe_load(f)
             
             if not config:
-                print("[ERROR] 错误: 配置文件格式不正确")
+                print("[ERROR] Configuration file format is incorrect")
                 sys.exit(1)
             
             if 'customer_service_agent' not in config:
-                print("[ERROR] 错误: 配置文件缺少 customer_service_agent 配置")
+                print("[ERROR] Configuration file missing customer_service_agent configuration")
                 sys.exit(1)
             
             if 'customer_service_task' not in config:
-                print("[ERROR] 错误: 配置文件缺少 customer_service_task 配置")
+                print("[ERROR] Configuration file missing customer_service_task configuration")
                 sys.exit(1)
             
-            print("[OK] 配置文件读取成功")
+            print("[OK] Configuration file read successfully")
             return config
         
         except Exception as e:
-            print(f"[ERROR] 读取配置文件失败: {e}")
+            print(f"[ERROR] Failed to read configuration file: {e}")
             sys.exit(1)
     
     def backup_crew_file(self):
-        """备份 crew.py 文件"""
-        # 创建备份目录
+        """Backup crew.py file"""
+        # Create backup directory
         self.backup_dir.mkdir(exist_ok=True)
         
-        # 生成备份文件名
+        # Generate backup filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = self.backup_dir / f"crew_backup_{timestamp}.py"
         
-        print(f"[BACKUP] 正在备份原始文件到: {backup_file}")
+        print(f"[BACKUP] Backing up original file to: {backup_file}")
         
         try:
             with open(self.crew_file, 'r', encoding='utf-8') as src:
@@ -112,32 +112,32 @@ class AgentPromptUpdater:
             with open(backup_file, 'w', encoding='utf-8') as dst:
                 dst.write(content)
             
-            print("[OK] 备份成功")
+            print("[OK] Backup successful")
             return True
         
         except Exception as e:
-            print(f"[ERROR] 备份失败: {e}")
+            print(f"[ERROR] Backup failed: {e}")
             return False
     
     def update_crew_file(self, config):
-        """更新 crew.py 文件"""
-        print(f"[UPDATE] 正在更新 {self.crew_file}")
+        """Update crew.py file"""
+        print(f"[UPDATE] Updating {self.crew_file}")
         
         try:
             with open(self.crew_file, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # ========== 更新 Agent 定义 ==========
+            # ========== Update Agent definition ==========
             agent_config = config['customer_service_agent']
-            role = agent_config.get('role', '智能客服代表')
-            goal = agent_config.get('goal', '为客户提供友好、专业的服务')
-            backstory = agent_config.get('backstory', '你是一位经验丰富的客服代表')
+            role = agent_config.get('role', 'Customer Service Representative')
+            goal = agent_config.get('goal', 'Provide friendly and professional service to customers')
+            backstory = agent_config.get('backstory', 'You are an experienced customer service representative')
             
-            # 格式化 backstory，确保正确的缩进
+            # Format backstory, ensure correct indentation
             backstory_lines = backstory.strip().split('\n')
             formatted_backstory = '\n            '.join(line.strip() for line in backstory_lines)
             
-            # 构建新的 Agent 代码
+            # Build new Agent code
             new_agent_code = f'''customer_service_agent = Agent(
             role="{role}",
             goal="{goal}",
@@ -146,29 +146,29 @@ class AgentPromptUpdater:
             llm=self.llm,
         )'''
             
-            # 使用正则表达式替换 customer_service_agent 的定义
+            # Use regex to replace customer_service_agent definition
             agent_pattern = r'customer_service_agent = Agent\([^)]+\)'
             
-            # 检查是否找到匹配
+            # Check if match is found
             if not re.search(agent_pattern, content, re.DOTALL):
-                print("[ERROR] 错误: 在 crew.py 中找不到 customer_service_agent 定义")
+                print("[ERROR] Cannot find customer_service_agent definition in crew.py")
                 return False
             
-            # 替换 Agent 内容
+            # Replace Agent content
             content = re.sub(agent_pattern, new_agent_code, content, flags=re.DOTALL)
-            print("[OK] Agent 配置已更新")
+            print("[OK] Agent configuration updated")
             
-            # ========== 更新 Task 定义 ==========
+            # ========== Update Task definition ==========
             task_config = config['customer_service_task']
             description_template = task_config.get('description_template', '')
-            expected_output = task_config.get('expected_output', '专业的客服回复')
+            expected_output = task_config.get('expected_output', 'Professional customer service reply')
             
-            # 格式化 description_template，确保正确的缩进
-            # 注意：保留 {customer_input}, {retrieved_summary}, {context_info} 占位符
+            # Format description_template, ensure correct indentation
+            # Note: Preserve {customer_input}, {retrieved_summary}, {context_info} placeholders
             description_lines = description_template.strip().split('\n')
             formatted_description = '\n                '.join(line.strip() for line in description_lines)
             
-            # 构建新的 Task 代码
+            # Build new Task code
             new_task_code = f'''customer_service_task = Task(
             description=f"""
                 {formatted_description}
@@ -177,113 +177,113 @@ class AgentPromptUpdater:
             agent=agents["customer_service_agent"]
         )'''
             
-            # 使用正则表达式替换 customer_service_task 的定义
+            # Use regex to replace customer_service_task definition
             task_pattern = r'customer_service_task = Task\([^)]+\)'
             
-            # 检查是否找到匹配
+            # Check if match is found
             if not re.search(task_pattern, content, re.DOTALL):
-                print("[ERROR] 错误: 在 crew.py 中找不到 customer_service_task 定义")
+                print("[ERROR] Cannot find customer_service_task definition in crew.py")
                 return False
             
-            # 替换 Task 内容
+            # Replace Task content
             content = re.sub(task_pattern, new_task_code, content, flags=re.DOTALL)
-            print("[OK] Task 配置已更新")
+            print("[OK] Task configuration updated")
             
-            # 写入更新后的内容
+            # Write updated content
             with open(self.crew_file, 'w', encoding='utf-8') as f:
                 f.write(content)
             
-            print("[OK] crew.py 更新成功")
+            print("[OK] crew.py updated successfully")
             return True
         
         except Exception as e:
-            print(f"[ERROR] 更新失败: {e}")
+            print(f"[ERROR] Update failed: {e}")
             import traceback
             traceback.print_exc()
             return False
     
     def verify_update(self):
-        """验证更新是否成功"""
-        print("[VERIFY] 正在验证更新...")
+        """Verify if update was successful"""
+        print("[VERIFY] Verifying update...")
         
         try:
             with open(self.crew_file, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 检查是否包含 customer_service_agent
+            # Check if contains customer_service_agent
             agent_found = 'customer_service_agent = Agent(' in content
             task_found = 'customer_service_task = Task(' in content
             
             if agent_found and task_found:
-                print("[OK] 验证成功: Agent 和 Task 配置已更新")
+                print("[OK] Verification successful: Agent and Task configurations updated")
                 return True
             else:
                 if not agent_found:
-                    print("[ERROR] 验证失败: 未找到 customer_service_agent 配置")
+                    print("[ERROR] Verification failed: customer_service_agent configuration not found")
                 if not task_found:
-                    print("[ERROR] 验证失败: 未找到 customer_service_task 配置")
+                    print("[ERROR] Verification failed: customer_service_task configuration not found")
                 return False
         
         except Exception as e:
-            print(f"[ERROR] 验证失败: {e}")
+            print(f"[ERROR] Verification failed: {e}")
             return False
     
     def fetch_ragflow_chat_id(self):
-        """从RAGFlow获取第一个chat_id"""
+        """Get first chat_id from RAGFlow"""
         if create_ragflow_client is None:
-            print("[SKIP] RAGFlow客户端不可用，跳过chat_id获取")
+            print("[SKIP] RAGFlow client unavailable, skipping chat_id retrieval")
             return None
         
-        print("\n[RAGFLOW] 正在从RAGFlow获取chat列表...")
+        print("\n[RAGFLOW] Getting chat list from RAGFlow...")
         
         try:
-            # 创建RAGFlow客户端
+            # Create RAGFlow client
             client = create_ragflow_client()
             
-            # 获取chat列表
+            # Get chat list
             chats = client.list_chats(page=1, page_size=10)
             
             if not chats:
-                print("[WARNING] RAGFlow中没有可用的chat")
-                print("[HINT] 请在RAGFlow Web界面创建一个chat（对话助手）")
+                print("[WARNING] No available chats in RAGFlow")
+                print("[HINT] Please create a chat (conversation assistant) in RAGFlow Web interface")
                 return None
             
-            # 获取第一个chat的ID
+            # Get first chat ID
             first_chat = chats[0]
             chat_id = first_chat.get('id')
             chat_name = first_chat.get('name', 'Unknown')
             
-            print(f"[OK] 找到RAGFlow chat: {chat_name} (ID: {chat_id})")
-            print(f"[INFO] 共找到 {len(chats)} 个chat")
+            print(f"[OK] Found RAGFlow chat: {chat_name} (ID: {chat_id})")
+            print(f"[INFO] Found {len(chats)} chats in total")
             
             return chat_id
         
         except Exception as e:
-            print(f"[ERROR] 获取RAGFlow chat_id失败: {e}")
+            print(f"[ERROR] Failed to get RAGFlow chat_id: {e}")
             return None
     
     def update_env_file(self, chat_id: str):
-        """更新.env文件中的RAGFLOW_CHAT_ID"""
-        print(f"\n[UPDATE] 正在更新.env文件中的RAGFLOW_CHAT_ID...")
+        """Update RAGFLOW_CHAT_ID in .env file"""
+        print(f"\n[UPDATE] Updating RAGFLOW_CHAT_ID in .env file...")
         
-        # 如果.env不存在，从env.template复制
+        # If .env doesn't exist, copy from env.template
         if not self.env_file.exists():
             if self.env_template.exists():
-                print(f"[INFO] .env文件不存在，从env.template创建")
+                print(f"[INFO] .env file does not exist, creating from env.template")
                 with open(self.env_template, 'r', encoding='utf-8') as f:
                     content = f.read()
                 with open(self.env_file, 'w', encoding='utf-8') as f:
                     f.write(content)
             else:
-                print(f"[ERROR] .env和env.template都不存在")
+                print(f"[ERROR] Both .env and env.template do not exist")
                 return False
         
         try:
-            # 读取.env文件
+            # Read .env file
             with open(self.env_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
             
-            # 更新RAGFLOW_CHAT_ID
+            # Update RAGFLOW_CHAT_ID
             updated = False
             new_lines = []
             
@@ -291,128 +291,128 @@ class AgentPromptUpdater:
                 if line.strip().startswith('RAGFLOW_CHAT_ID='):
                     new_lines.append(f'RAGFLOW_CHAT_ID={chat_id}\n')
                     updated = True
-                    print(f"[OK] 已更新RAGFLOW_CHAT_ID={chat_id}")
+                    print(f"[OK] Updated RAGFLOW_CHAT_ID={chat_id}")
                 else:
                     new_lines.append(line)
             
-            # 如果没有找到RAGFLOW_CHAT_ID，添加它
+            # If RAGFLOW_CHAT_ID not found, add it
             if not updated:
-                # 在RAGFlow配置部分添加
+                # Add to RAGFlow configuration section
                 for i, line in enumerate(new_lines):
-                    if 'RAGFlow配置' in line or 'RAGFLOW' in line:
-                        # 找到RAGFlow配置部分，在后面添加
+                    if 'RAGFlow' in line or 'RAGFLOW' in line:
+                        # Find RAGFlow configuration section, add after it
                         insert_pos = i + 1
                         while insert_pos < len(new_lines) and new_lines[insert_pos].strip() and not new_lines[insert_pos].startswith('#'):
                             insert_pos += 1
                         new_lines.insert(insert_pos, f'RAGFLOW_CHAT_ID={chat_id}\n')
                         updated = True
-                        print(f"[OK] 已添加RAGFLOW_CHAT_ID={chat_id}")
+                        print(f"[OK] Added RAGFLOW_CHAT_ID={chat_id}")
                         break
                 
-                # 如果还是没找到合适位置，添加到文件末尾
+                # If still no suitable position found, add to end of file
                 if not updated:
                     new_lines.append(f'\nRAGFLOW_CHAT_ID={chat_id}\n')
-                    print(f"[OK] 已添加RAGFLOW_CHAT_ID={chat_id}")
+                    print(f"[OK] Added RAGFLOW_CHAT_ID={chat_id}")
             
-            # 写回文件
+            # Write back to file
             with open(self.env_file, 'w', encoding='utf-8') as f:
                 f.writelines(new_lines)
             
-            print("[OK] .env文件更新成功")
+            print("[OK] .env file updated successfully")
             return True
         
         except Exception as e:
-            print(f"[ERROR] 更新.env文件失败: {e}")
+            print(f"[ERROR] Failed to update .env file: {e}")
             return False
     
     def run(self, auto_yes=False):
-        """执行更新流程
+        """Execute update process
         
         Args:
-            auto_yes: 是否自动确认（跳过交互式询问）
+            auto_yes: Whether to auto-confirm (skip interactive prompts)
         """
         print("\n" + "="*60)
-        print("AI Agent Prompt 更新工具")
+        print("AI Agent Prompt Update Tool")
         print("="*60 + "\n")
         
-        # 1. 加载配置
+        # 1. Load configuration
         config = self.load_config()
         
         agent_config = config['customer_service_agent']
         task_config = config['customer_service_task']
         
-        print("\n[CONFIG] 当前配置:")
-        print("\n[Agent 配置]")
-        print(f"  角色: {agent_config.get('role')}")
-        print(f"  目标: {agent_config.get('goal')}")
-        print(f"  背景: {agent_config.get('backstory', '')[:50]}...")
-        print("\n[Task 配置]")
-        print(f"  描述模板: {task_config.get('description_template', '')[:80]}...")
-        print(f"  期望输出: {task_config.get('expected_output')}")
+        print("\n[CONFIG] Current configuration:")
+        print("\n[Agent Configuration]")
+        print(f"  Role: {agent_config.get('role')}")
+        print(f"  Goal: {agent_config.get('goal')}")
+        print(f"  Backstory: {agent_config.get('backstory', '')[:50]}...")
+        print("\n[Task Configuration]")
+        print(f"  Description template: {task_config.get('description_template', '')[:80]}...")
+        print(f"  Expected output: {task_config.get('expected_output')}")
         
-        # 2. 询问是否继续（除非设置了auto_yes）
+        # 2. Ask if continue (unless auto_yes is set)
         if not auto_yes:
-            print("\n[WARNING] 即将更新 crew.py 文件 (Agent + Task)")
-            response = input("是否继续? (y/n): ").lower().strip()
+            print("\n[WARNING] About to update crew.py file (Agent + Task)")
+            response = input("Continue? (y/n): ").lower().strip()
             
             if response != 'y':
-                print("[CANCEL] 操作已取消")
+                print("[CANCEL] Operation cancelled")
                 sys.exit(0)
         else:
-            print("\n[AUTO] 自动确认模式，跳过交互式询问")
+            print("\n[AUTO] Auto-confirm mode, skipping interactive prompts")
         
-        # 3. 备份原文件
+        # 3. Backup original file
         if not self.backup_crew_file():
-            print("[ERROR] 由于备份失败，操作已中止")
+            print("[ERROR] Operation aborted due to backup failure")
             sys.exit(1)
         
-        # 4. 更新文件
+        # 4. Update file
         if not self.update_crew_file(config):
-            print("[ERROR] 更新失败，请检查错误信息")
+            print("[ERROR] Update failed, please check error messages")
             sys.exit(1)
         
-        # 5. 验证更新
+        # 5. Verify update
         if not self.verify_update():
-            print("[ERROR] 验证失败")
+            print("[ERROR] Verification failed")
             sys.exit(1)
         
-        # 6. 获取并更新RAGFlow chat_id
+        # 6. Get and update RAGFlow chat_id
         chat_id = self.fetch_ragflow_chat_id()
         if chat_id:
             self.update_env_file(chat_id)
         else:
-            print("[SKIP] 跳过.env文件更新")
+            print("[SKIP] Skipping .env file update")
         
         print("\n" + "="*60)
-        print("[SUCCESS] 更新完成！")
+        print("[SUCCESS] Update completed!")
         print("="*60)
-        print("\n[NEXT] 后续步骤:")
-        print("  1. 重启后端服务以应用更改")
-        print("  2. 测试新的 prompt 是否符合预期")
-        print(f"  3. 如需回滚，可使用备份文件: {self.backup_dir}")
+        print("\n[NEXT] Next steps:")
+        print("  1. Restart backend service to apply changes")
+        print("  2. Test if the new prompt meets expectations")
+        print(f"  3. If rollback needed, use backup file: {self.backup_dir}")
         if chat_id:
-            print(f"  4. RAGFlow chat_id 已更新到 .env 文件: {chat_id}")
+            print(f"  4. RAGFlow chat_id has been updated in .env file: {chat_id}")
         print("\n")
 
 
 def main():
-    """主函数"""
+    """Main function"""
     import argparse
     
-    # 解析命令行参数
-    parser = argparse.ArgumentParser(description='AI Agent Prompt 更新工具')
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='AI Agent Prompt Update Tool')
     parser.add_argument('--yes', '-y', action='store_true', 
-                        help='自动确认，跳过交互式询问')
+                        help='Auto-confirm, skip interactive prompts')
     args = parser.parse_args()
     
     try:
         updater = AgentPromptUpdater()
         updater.run(auto_yes=args.yes)
     except KeyboardInterrupt:
-        print("\n\n[CANCEL] 操作已取消")
+        print("\n\n[CANCEL] Operation cancelled")
         sys.exit(1)
     except Exception as e:
-        print(f"\n[ERROR] 发生错误: {e}")
+        print(f"\n[ERROR] Error occurred: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

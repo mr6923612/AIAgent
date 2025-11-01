@@ -26,7 +26,7 @@ const Login = ({ onLogin }) => {
     setError('')
 
     try {
-      // 模拟登录验证
+      // Simulate login validation
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       if (formData.username && formData.password) {
@@ -37,10 +37,10 @@ const Login = ({ onLogin }) => {
           avatar: `https://ui-avatars.com/api/?name=${formData.username}&background=6366f1&color=fff`
         })
       } else {
-        setError('请输入用户名和密码')
+        setError('Please enter username and password')
       }
     } catch (err) {
-      setError('登录失败，请重试')
+      setError('Login failed, please try again')
     } finally {
       setIsLoading(false)
     }
@@ -51,7 +51,7 @@ const Login = ({ onLogin }) => {
       <div className="login-card">
         <div className="login-header">
           <h1>CrewAI Chat</h1>
-          <p>欢迎使用智能对话系统</p>
+          <p>Welcome to Intelligent Conversation System</p>
         </div>
         
         <form onSubmit={handleSubmit} className="login-form">
@@ -61,7 +61,7 @@ const Login = ({ onLogin }) => {
               <input
                 type="text"
                 name="username"
-                placeholder="用户名"
+                placeholder="Username"
                 value={formData.username}
                 onChange={handleChange}
                 required
@@ -75,7 +75,7 @@ const Login = ({ onLogin }) => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                placeholder="密码"
+                placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -97,15 +97,15 @@ const Login = ({ onLogin }) => {
             className="login-button"
             disabled={isLoading}
           >
-            {isLoading ? '登录中...' : '登录'}
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
         <div className="login-footer">
-          <p>演示账号：任意用户名和密码即可登录</p>
+          <p>Demo account: Any username and password can login</p>
           <p>
-            还没有账户？ 
-            <Link to="/register" className="register-link">立即注册</Link>
+            Don't have an account? 
+            <Link to="/register" className="register-link">Register now</Link>
           </p>
         </div>
       </div>

@@ -1,27 +1,27 @@
 """
-MySQL数据库操作测试
+MySQL Database Operations Tests
 """
 import pytest
 from unittest.mock import patch, Mock
 
 
 class TestMySQLOperations:
-    """MySQL操作测试类"""
+    """MySQL operations test class"""
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_database_connection(self, mock_db):
-        """测试数据库连接"""
+        """Test database connection"""
         mock_db.execute_query.return_value = []
         
         from crewaiBackend.utils.sessionManager import SessionManager
         sm = SessionManager()
-        # 触发一次数据库调用
+        # Trigger a database call
         sm.get_all_sessions()
         mock_db.execute_query.assert_called()
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_create_session_in_database(self, mock_db):
-        """测试在数据库中创建会话"""
+        """Test creating session in database"""
         mock_db.execute_update.return_value = 1
         
         from crewaiBackend.utils.sessionManager import SessionManager
@@ -32,10 +32,10 @@ class TestMySQLOperations:
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_add_message_to_database(self, mock_db):
-        """测试在数据库中添加消息"""
-        # 插入消息与更新会话更新时间
+        """Test adding message to database"""
+        # Insert message and update session update time
         mock_db.execute_update.return_value = 1
-        # 第一次查询统计用户消息数返回1，触发标题更新
+        # First query counts user messages, returns 1, triggers title update
         mock_db.execute_query.side_effect = [ [(1,)] ]
         
         from crewaiBackend.utils.sessionManager import SessionManager
@@ -47,8 +47,8 @@ class TestMySQLOperations:
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_get_session_from_database(self, mock_db):
-        """测试从数据库获取会话"""
-        # 模拟 chat_sessions 行(至少7列访问到 index 6)
+        """Test getting session from database"""
+        # Mock chat_sessions row (at least 7 columns accessed up to index 6)
         session_row = (
             "test_session_123",  # session_id
             "user_1",            # user_id
@@ -72,8 +72,8 @@ class TestMySQLOperations:
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_delete_session_from_database(self, mock_db):
-        """测试从数据库删除会话"""
-        # get_session 查询 + 删除调用
+        """Test deleting session from database"""
+        # get_session query + delete call
         session_row = (
             "test_session_123", "user_1", "Test Session",
             __import__('datetime').datetime.now(), __import__('datetime').datetime.now(), "{}", None
@@ -89,7 +89,7 @@ class TestMySQLOperations:
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_database_error_handling(self, mock_db):
-        """测试数据库错误处理"""
+        """Test database error handling"""
         mock_db.execute_update.side_effect = Exception("Connection failed")
         
         from crewaiBackend.utils.sessionManager import SessionManager
@@ -99,7 +99,7 @@ class TestMySQLOperations:
     
     @patch('crewaiBackend.utils.sessionManager.db_manager')
     def test_transaction_rollback(self, mock_db):
-        """测试事务回滚"""
+        """Test transaction rollback"""
         mock_db.execute_update.side_effect = Exception("SQL error")
         
         from crewaiBackend.utils.sessionManager import SessionManager

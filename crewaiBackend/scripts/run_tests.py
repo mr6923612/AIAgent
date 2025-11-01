@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-测试运行脚本
+Test Running Script
 """
 import os
 import sys
@@ -8,16 +8,16 @@ import subprocess
 import argparse
 from pathlib import Path
 
-# 添加项目根目录到Python路径
+# Add project root directory to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 def run_tests(test_type=None, verbose=False, coverage=True, parallel=False):
-    """运行测试"""
-    # 切换到项目根目录
+    """Run tests"""
+    # Switch to project root directory
     os.chdir(project_root.parent)
     
-    # 构建pytest命令
+    # Build pytest command
     cmd = ["python", "-m", "pytest"]
     
     if verbose:
@@ -29,7 +29,7 @@ def run_tests(test_type=None, verbose=False, coverage=True, parallel=False):
     if parallel:
         cmd.extend(["-n", "auto"])
     
-    # 根据测试类型选择测试目录
+    # Select test directory based on test type
     if test_type:
         if test_type == "unit":
             cmd.append("crewaiBackend/tests/unit/")
@@ -51,7 +51,7 @@ def run_tests(test_type=None, verbose=False, coverage=True, parallel=False):
     
     print(f"Running command: {' '.join(cmd)}")
     
-    # 运行测试
+    # Run tests
     try:
         result = subprocess.run(cmd, check=True)
         print("✅ All tests passed!")
@@ -61,7 +61,7 @@ def run_tests(test_type=None, verbose=False, coverage=True, parallel=False):
         return False
 
 def main():
-    """主函数"""
+    """Main function"""
     parser = argparse.ArgumentParser(description="Run tests for AI Agent project")
     parser.add_argument("--type", choices=["unit", "integration", "api", "database", "external", "smoke"],
                        help="Type of tests to run")

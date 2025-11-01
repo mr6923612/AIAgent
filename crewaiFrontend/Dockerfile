@@ -1,32 +1,32 @@
-# 使用Node.js 18官方镜像
+# Use Node.js 18 official image
 FROM node:18-alpine
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 复制package文件
+# Copy package files
 COPY package*.json ./
 
-# 安装依赖（包括devDependencies，因为需要vite来构建）
+# Install dependencies (including devDependencies, as vite is needed for build)
 RUN npm ci
 
-# 复制应用代码
+# Copy application code
 COPY . .
 
-# 构建应用
+# Build application
 RUN npm run build
 
-# 使用nginx提供静态文件服务
+# Use nginx to serve static files
 FROM nginx:alpine
 
-# 复制构建的文件到nginx目录
+# Copy built files to nginx directory
 COPY --from=0 /app/dist /usr/share/nginx/html
 
-# 复制nginx配置
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# 暴露端口
+# Expose port
 EXPOSE 3000
 
-# 启动nginx
+# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

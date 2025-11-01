@@ -10,7 +10,7 @@ function App() {
   const [user, setUser] = useState(null)
 
   useEffect(() => {
-    // 检查本地存储中的认证状态
+    // Check authentication status in local storage
     const token = localStorage.getItem('token')
     const userData = localStorage.getItem('user')
     

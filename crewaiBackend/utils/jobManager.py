@@ -1,35 +1,35 @@
-# 核心功能：
-# (1)管理多个作业及其状态，通过锁机制确保线程安全。
-# (2)定义作业和事件的结构，并提供一个函数来追加事件，同时在作业开始时初始化新的作业实例。
+# Core functions:
+# (1) Manage multiple jobs and their status, ensure thread safety through lock mechanism.
+# (2) Define the structure of jobs and events, and provide a function to append events, while initializing new job instances when jobs start.
 
 
-# 导入python标准库
+# Import Python standard library
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Dict
 from threading import Lock
 
 
-# 创建一个锁，用于保护jobs字典，确保在多线程操作时的安全性
+# Create a lock to protect the jobs dictionary, ensuring safety during multi-threaded operations
 jobs_lock = Lock()
-# 一个字典，用于存储以job_id为键的Job实例
+# A dictionary to store Job instances with job_id as key
 jobs: Dict[str, "Job"] = {}
 
 
 
-# 使用@dataclass定义一个Event类，表示事件的结
-# timestamp：事件发生的时间
-# data：与事件相关的数据
+# Use @dataclass to define an Event class, representing the structure of an event
+# timestamp: Time when the event occurred
+# data: Data related to the event
 @dataclass
 class Event:
     timestamp: datetime
     data: str
 
 
-# 使用@dataclass定义一个Job类，表示一个作业的结构
-# status：表示作业的状态（如"STARTED"、"COMPLETE"等）
-# events：一个列表，包含与该作业相关的事件
-# result：作业完成后的结果
+# Use @dataclass to define a Job class, representing the structure of a job
+# status: Represents the status of the job (e.g., "STARTED", "COMPLETE", etc.)
+# events: A list containing events related to this job
+# result: Result after job completion
 @dataclass
 class Job:
     status: str
@@ -37,12 +37,12 @@ class Job:
     result: str
 
 
-# 定义函数append_event，接受job_id和事件数据event_data作为参数
+# Define function append_event, accepting job_id and event data event_data as parameters
 def append_event(job_id: str, event_data: str):
-    # 使用上下文管理器with来确保在锁定期间执行代码，避免多线程冲突
+    # Use context manager with to ensure code execution during lock period, avoiding multi-thread conflicts
     with jobs_lock:
-        # 检查jobs字典中是否存在job_id
-        # 如果不存在，创建一个新的Job实例，将其状态设置为STARTED，事件列表初始化为空，结果初始化为空字符串
+        # Check if job_id exists in jobs dictionary
+        # If not exists, create a new Job instance, set its status to STARTED, initialize event list as empty, result as empty string
         if job_id not in jobs:
             print("Job %s started", job_id)
             jobs[job_id] = Job(
@@ -50,9 +50,9 @@ def append_event(job_id: str, event_data: str):
                 events=[],
                 result='')
         else:
-            # 如果job_id已存在，打印信息表示正在为该作业附加事件
+            # If job_id already exists, print information indicating appending event for this job
             print("Appending event for job %s: %s", job_id, event_data)
 
-        # 创建一个新的Event实例，记录当前时间和事件数据，然后将其追加到相应Job实例的事件列表中
+        # Create a new Event instance, record current time and event data, then append it to the event list of the corresponding Job instance
         jobs[job_id].events.append(
             Event(timestamp=datetime.now(), data=event_data))

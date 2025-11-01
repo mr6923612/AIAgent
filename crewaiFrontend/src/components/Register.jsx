@@ -29,24 +29,24 @@ const Register = ({ onRegister }) => {
     setError('')
 
     try {
-      // 验证密码是否匹配
+      // Verify password match
       if (formData.password !== formData.confirmPassword) {
-        setError('两次输入的密码不一致')
+        setError('Passwords do not match')
         setIsLoading(false)
         return
       }
 
-      // 验证必填字段
+      // Verify required fields
       if (!formData.username || !formData.email || !formData.password) {
-        setError('请填写所有必填字段')
+        setError('Please fill in all required fields')
         setIsLoading(false)
         return
       }
 
-      // 模拟注册过程
+      // Simulate registration process
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // 注册成功，直接登录
+      // Registration successful, login directly
       onRegister({
         id: Date.now(),
         username: formData.username,
@@ -54,7 +54,7 @@ const Register = ({ onRegister }) => {
         avatar: `https://ui-avatars.com/api/?name=${formData.username}&background=6366f1&color=fff`
       })
     } catch (err) {
-      setError('注册失败，请重试')
+      setError('Registration failed, please try again')
     } finally {
       setIsLoading(false)
     }
@@ -67,8 +67,8 @@ const Register = ({ onRegister }) => {
           <Link to="/login" className="back-button">
             <ArrowLeft size={20} />
           </Link>
-          <h1>创建账户</h1>
-          <p>加入CrewAI智能对话系统</p>
+          <h1>Create Account</h1>
+          <p>Join CrewAI Intelligent Conversation System</p>
         </div>
         
         <form onSubmit={handleSubmit} className="register-form">
@@ -78,7 +78,7 @@ const Register = ({ onRegister }) => {
               <input
                 type="text"
                 name="username"
-                placeholder="用户名"
+                placeholder="Username"
                 value={formData.username}
                 onChange={handleChange}
                 required
@@ -92,7 +92,7 @@ const Register = ({ onRegister }) => {
               <input
                 type="email"
                 name="email"
-                placeholder="邮箱地址"
+                placeholder="Email Address"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -106,7 +106,7 @@ const Register = ({ onRegister }) => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                placeholder="密码"
+                placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -127,7 +127,7 @@ const Register = ({ onRegister }) => {
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 name="confirmPassword"
-                placeholder="确认密码"
+                placeholder="Confirm Password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
@@ -149,14 +149,14 @@ const Register = ({ onRegister }) => {
             className="register-button"
             disabled={isLoading}
           >
-            {isLoading ? '注册中...' : '创建账户'}
+            {isLoading ? 'Registering...' : 'Create Account'}
           </button>
         </form>
 
         <div className="register-footer">
           <p>
-            已有账户？ 
-            <Link to="/login" className="login-link">立即登录</Link>
+            Already have an account? 
+            <Link to="/login" className="login-link">Login now</Link>
           </p>
         </div>
       </div>

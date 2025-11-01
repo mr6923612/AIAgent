@@ -1,7 +1,7 @@
 """
-Ollama模型测试
-测试Ollama服务是否正常运行并包含所需的模型
-注意：此测试需要下载大模型文件，不适合在CI/CD中运行
+Ollama Model Tests
+Test if Ollama service is running normally and contains required models
+Note: This test requires downloading large model files, not suitable for CI/CD runs
 """
 import pytest
 import requests
@@ -9,27 +9,27 @@ import time
 import os
 from unittest.mock import patch, Mock
 
-# 检查是否在CI环境中
+# Check if in CI environment
 IS_CI = os.getenv('CI') or os.getenv('GITHUB_ACTIONS')
 
 class TestOllamaModels:
-    """Ollama模型测试类"""
+    """Ollama model test class"""
 
     @pytest.fixture
     def ollama_base_url(self):
-        """Ollama服务基础URL"""
+        """Ollama service base URL"""
         return "http://localhost:11434"
 
     def test_ollama_service_connection(self, ollama_base_url):
-        """测试Ollama服务连接"""
+        """Test Ollama service connection"""
         try:
             response = requests.get(f"{ollama_base_url}/api/tags", timeout=5)
             assert response.status_code == 200
         except requests.exceptions.ConnectionError:
-            pytest.skip("Ollama服务未运行，跳过连接测试")
+            pytest.skip("Ollama service is not running, skipping connection test")
 
     def test_ollama_models_list(self, ollama_base_url):
-        """测试获取模型列表"""
+        """Test getting model list"""
         try:
             response = requests.get(f"{ollama_base_url}/api/tags", timeout=5)
             if response.status_code == 200:
@@ -37,12 +37,12 @@ class TestOllamaModels:
                 assert 'models' in data
                 assert isinstance(data['models'], list)
         except requests.exceptions.ConnectionError:
-            pytest.skip("Ollama服务未运行，跳过模型列表测试")
+            pytest.skip("Ollama service is not running, skipping model list test")
 
     def test_required_models_present(self, ollama_base_url):
-        """测试必需的模型是否存在"""
+        """Test if required models exist"""
         if IS_CI:
-            pytest.skip("跳过模型下载测试 - 不适合在CI环境中运行")
+            pytest.skip("Skipping model download test - not suitable for CI environment")
         
         required_models = ['bge-m3']
         
@@ -53,16 +53,16 @@ class TestOllamaModels:
                 installed_models = [model['name'] for model in data.get('models', [])]
                 
                 for model in required_models:
-                    # 检查模型名称是否在已安装模型中（支持带标签的模型名）
+                    # Check if model name is in installed models (supports tagged model names)
                     model_found = any(model in installed_model for installed_model in installed_models)
-                    assert model_found, f"必需模型 {model} 未安装，已安装模型: {installed_models}"
+                    assert model_found, f"Required model {model} is not installed, installed models: {installed_models}"
         except requests.exceptions.ConnectionError:
-            pytest.skip("Ollama服务未运行，跳过模型存在性测试")
+            pytest.skip("Ollama service is not running, skipping model existence test")
 
     def test_bge_m3_model_inference(self, ollama_base_url):
-        """测试bge-m3模型推理功能"""
+        """Test bge-m3 model inference functionality"""
         if IS_CI:
-            pytest.skip("跳过模型推理测试 - 不适合在CI环境中运行")
+            pytest.skip("Skipping model inference test - not suitable for CI environment")
         
         try:
             test_data = {
@@ -82,18 +82,18 @@ class TestOllamaModels:
                 assert 'response' in result
                 assert isinstance(result['response'], str)
             else:
-                pytest.skip(f"bge-m3模型推理测试失败: {response.status_code}")
+                pytest.skip(f"bge-m3 model inference test failed: {response.status_code}")
                 
         except requests.exceptions.ConnectionError:
-            pytest.skip("Ollama服务未运行，跳过bge-m3推理测试")
+            pytest.skip("Ollama service is not running, skipping bge-m3 inference test")
 
     def test_ollama_model_download(self, ollama_base_url):
-        """测试模型下载功能"""
+        """Test model download functionality"""
         if IS_CI:
-            pytest.skip("跳过模型下载测试 - 不适合在CI环境中运行")
+            pytest.skip("Skipping model download test - not suitable for CI environment")
         
         try:
-            # 测试下载一个小的测试模型
+            # Test downloading a small test model
             test_model = "tinyllama"
             
             response = requests.post(
@@ -103,31 +103,31 @@ class TestOllamaModels:
             )
             
             if response.status_code == 200:
-                # 检查模型是否在列表中
-                time.sleep(5)  # 等待下载完成
+                # Check if model is in the list
+                time.sleep(5)  # Wait for download to complete
                 tags_response = requests.get(f"{ollama_base_url}/api/tags", timeout=5)
                 if tags_response.status_code == 200:
                     data = tags_response.json()
                     installed_models = [model['name'] for model in data.get('models', [])]
-                    # 检查模型名称是否在已安装模型中（支持带标签的模型名）
+                    # Check if model name is in installed models (supports tagged model names)
                     model_found = any(test_model in installed_model for installed_model in installed_models)
-                    assert model_found, f"测试模型 {test_model} 下载失败，已安装模型: {installed_models}"
+                    assert model_found, f"Test model {test_model} download failed, installed models: {installed_models}"
             else:
-                pytest.skip(f"模型下载测试失败: {response.status_code}")
+                pytest.skip(f"Model download test failed: {response.status_code}")
                 
         except requests.exceptions.ConnectionError:
-            pytest.skip("Ollama服务未运行，跳过模型下载测试")
+            pytest.skip("Ollama service is not running, skipping model download test")
 
     def test_ollama_health_check(self, ollama_base_url):
-        """测试Ollama健康检查"""
+        """Test Ollama health check"""
         try:
             response = requests.get(f"{ollama_base_url}/api/tags", timeout=5)
             assert response.status_code == 200
             
-            # 检查响应格式
+            # Check response format
             data = response.json()
             assert 'models' in data
             assert isinstance(data['models'], list)
             
         except requests.exceptions.ConnectionError:
-            pytest.skip("Ollama服务未运行，跳过健康检查测试")
+            pytest.skip("Ollama service is not running, skipping health check test")

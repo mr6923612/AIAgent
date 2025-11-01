@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-依赖包检查脚本
-验证requirements.txt中的所有包是否正确安装
+Dependency Package Check Script
+Verify that all packages in requirements.txt are correctly installed
 """
 
 import sys
@@ -10,22 +10,22 @@ import os
 import subprocess
 from pathlib import Path
 
-# 设置编码
+# Set encoding
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-# 添加项目路径
+# Add project path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def check_package(package_name, version_spec=None):
-    """检查单个包是否安装"""
+    """Check if a single package is installed"""
     try:
         if version_spec:
-            # 检查特定版本
+            # Check specific version
             import pkg_resources
             pkg_resources.require(f"{package_name}{version_spec}")
         else:
-            # 只检查包是否存在
+            # Only check if package exists
             __import__(package_name)
         return True, None
     except ImportError as e:
@@ -36,26 +36,26 @@ def check_package(package_name, version_spec=None):
         return False, str(e)
 
 def check_requirements():
-    """检查requirements.txt中的所有依赖"""
-    print("🔍 检查项目依赖包...")
+    """Check all dependencies in requirements.txt"""
+    print("🔍 Checking project dependencies...")
     print("=" * 50)
     
-    # 读取requirements.txt
+    # Read requirements.txt
     requirements_file = Path(__file__).parent.parent / "requirements.txt"
     
     if not requirements_file.exists():
-        print("❌ requirements.txt 文件不存在")
+        print("❌ requirements.txt file does not exist")
         return False
     
     with open(requirements_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     
-    # 解析依赖
+    # Parse dependencies
     dependencies = []
     for line in lines:
         line = line.strip()
         if line and not line.startswith('#'):
-            # 解析包名和版本
+            # Parse package name and version
             if '>=' in line:
                 package, version = line.split('>=')
                 dependencies.append((package.strip(), f">={version.strip()}"))
@@ -68,7 +68,7 @@ def check_requirements():
             else:
                 dependencies.append((line, None))
     
-    # 检查每个依赖
+    # Check each dependency
     all_ok = True
     for package, version_spec in dependencies:
         is_installed, error = check_package(package, version_spec)
@@ -82,18 +82,18 @@ def check_requirements():
     print("=" * 50)
     
     if all_ok:
-        print("🎉 所有依赖包检查通过！")
+        print("🎉 All dependency checks passed!")
         return True
     else:
-        print("⚠️ 部分依赖包缺失或版本不匹配")
-        print("\n💡 解决方案:")
-        print("1. 运行: pip install -r requirements.txt")
-        print("2. 或者: pip install --upgrade -r requirements.txt")
+        print("⚠️ Some dependencies are missing or version mismatch")
+        print("\n💡 Solution:")
+        print("1. Run: pip install -r requirements.txt")
+        print("2. Or: pip install --upgrade -r requirements.txt")
         return False
 
 def install_requirements():
-    """安装requirements.txt中的依赖"""
-    print("📦 安装项目依赖...")
+    """Install dependencies in requirements.txt"""
+    print("📦 Installing project dependencies...")
     
     requirements_file = Path(__file__).parent.parent / "requirements.txt"
     
@@ -102,33 +102,33 @@ def install_requirements():
             sys.executable, "-m", "pip", "install", "-r", str(requirements_file)
         ], capture_output=True, text=True, check=True)
         
-        print("✅ 依赖安装成功")
+        print("✅ Dependencies installed successfully")
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ 依赖安装失败: {e}")
-        print(f"错误输出: {e.stderr}")
+        print(f"❌ Dependency installation failed: {e}")
+        print(f"Error output: {e.stderr}")
         return False
 
 def main():
-    """主函数"""
+    """Main function"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='检查或安装项目依赖')
-    parser.add_argument('--install', action='store_true', help='安装缺失的依赖')
-    parser.add_argument('--check-only', action='store_true', help='只检查不安装')
+    parser = argparse.ArgumentParser(description='Check or install project dependencies')
+    parser.add_argument('--install', action='store_true', help='Install missing dependencies')
+    parser.add_argument('--check-only', action='store_true', help='Only check, do not install')
     
     args = parser.parse_args()
     
     if args.install:
-        # 先检查，再安装
+        # Check first, then install
         if not check_requirements():
-            print("\n📦 开始安装缺失的依赖...")
+            print("\n📦 Starting to install missing dependencies...")
             install_requirements()
-            print("\n🔍 重新检查依赖...")
+            print("\n🔍 Rechecking dependencies...")
             check_requirements()
     else:
-        # 只检查
+        # Only check
         check_requirements()
 
 if __name__ == "__main__":

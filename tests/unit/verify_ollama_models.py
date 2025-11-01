@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Ollama模型验证脚本
-验证Ollama服务是否正常运行并包含所需的模型
+Ollama Model Verification Script
+Verify if Ollama service is running normally and contains required models
 """
 
 import requests
@@ -10,23 +10,23 @@ import time
 import sys
 
 def check_ollama_service():
-    """检查Ollama服务是否运行"""
+    """Check if Ollama service is running"""
     try:
         response = requests.get("http://localhost:11434/api/tags", timeout=10)
         if response.status_code == 200:
             return True
         else:
-            print(f"❌ Ollama服务响应异常: {response.status_code}")
+            print(f"❌ Ollama service response abnormal: {response.status_code}")
             return False
     except requests.exceptions.ConnectionError:
-        print("❌ 无法连接到Ollama服务 (http://localhost:11434)")
+        print("❌ Unable to connect to Ollama service (http://localhost:11434)")
         return False
     except Exception as e:
-        print(f"❌ 检查Ollama服务时出错: {str(e)}")
+        print(f"❌ Error checking Ollama service: {str(e)}")
         return False
 
 def get_installed_models():
-    """获取已安装的模型列表"""
+    """Get list of installed models"""
     try:
         response = requests.get("http://localhost:11434/api/tags", timeout=10)
         if response.status_code == 200:
@@ -34,14 +34,14 @@ def get_installed_models():
             models = [model['name'] for model in data.get('models', [])]
             return models
         else:
-            print(f"❌ 获取模型列表失败: {response.status_code}")
+            print(f"❌ Failed to get model list: {response.status_code}")
             return []
     except Exception as e:
-        print(f"❌ 获取模型列表时出错: {str(e)}")
+        print(f"❌ Error getting model list: {str(e)}")
         return []
 
 def verify_required_models():
-    """验证必需的模型是否已安装"""
+    """Verify if required models are installed"""
     required_models = ['bge-m3', 'llama3.2:3b']
     
     print("Checking Ollama service status...")
@@ -71,11 +71,11 @@ def verify_required_models():
     return True
 
 def test_model_inference():
-    """测试模型推理功能"""
+    """Test model inference functionality"""
     print("Testing model inference...")
     
     try:
-        # 测试bge-m3模型
+        # Test bge-m3 model
         test_data = {
             "model": "bge-m3",
             "prompt": "Hello, world!",
@@ -101,20 +101,20 @@ def test_model_inference():
         return False
 
 def main():
-    """主函数"""
+    """Main function"""
     print("Starting Ollama model verification...")
     print("=" * 50)
     
-    # 等待服务启动
+    # Wait for service to start
     print("Waiting for Ollama service to start...")
     time.sleep(5)
     
-    # 验证模型
+    # Verify models
     if not verify_required_models():
         print("Model verification failed")
         sys.exit(1)
     
-    # 测试推理
+    # Test inference
     if not test_model_inference():
         print("Model inference test failed")
         sys.exit(1)

@@ -1,7 +1,7 @@
 services:
   # ==================== AI Agent Services ====================
   
-  # AI Agent MySQL数据库
+  # AI Agent MySQL Database
   backend-mysql:
     image: mysql:8.0
     container_name: backend-mysql
@@ -18,7 +18,7 @@ services:
     profiles:
       - aiagent
 
-  # AI Agent后端服务
+  # AI Agent Backend Service
   aiagent-backend:
     build:
       context: ./crewaiBackend
@@ -44,7 +44,7 @@ services:
     profiles:
       - aiagent
 
-  # AI Agent前端服务
+  # AI Agent Frontend Service
   aiagent-frontend:
     build:
       context: ./crewaiFrontend
@@ -60,7 +60,7 @@ services:
     profiles:
       - aiagent
 
-  # Ollama本地LLM服务
+  # Ollama Local LLM Service
   ollama:
     image: ollama/ollama
     container_name: ollama

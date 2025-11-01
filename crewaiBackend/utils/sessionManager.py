@@ -1,7 +1,7 @@
 """
-会话管理器
-用于管理聊天会话和上下文记录
-使用MySQL数据库进行持久化存储
+Session Manager
+For managing chat sessions and context records
+Uses MySQL database for persistent storage
 """
 
 import json
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class ChatMessage:
-    """聊天消息类"""
+    """Chat message class"""
     
     def __init__(self, role: str, content: str, timestamp: datetime = None):
-        self.role = role  # 'user' 或 'assistant'
+        self.role = role  # 'user' or 'assistant'
         self.content = content
         self.timestamp = timestamp or datetime.now()
         self.id = str(uuid4())
@@ -43,27 +43,27 @@ class ChatMessage:
 
 
 class ChatSession:
-    """聊天会话类"""
+    """Chat session class"""
     
     def __init__(self, session_id: str = None, user_id: str = None, title: str = None, ragflow_session_id: str = None):
         self.session_id = session_id or str(uuid4())
         self.user_id = user_id or "anonymous"
-        self.title = title or f"聊天会话 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        self.title = title or f"Chat Session {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
         self.messages: List[ChatMessage] = []
-        self.context = {}  # 存储上下文信息
-        self.ragflow_session_id = ragflow_session_id  # RAGFlow会话ID
+        self.context = {}  # Store context information
+        self.ragflow_session_id = ragflow_session_id  # RAGFlow session ID
     
     def add_message(self, role: str, content: str):
-        """添加消息到会话"""
+        """Add message to session"""
         message = ChatMessage(role, content)
         self.messages.append(message)
         self.updated_at = datetime.now()
         return message
     
     def get_context_summary(self, max_messages: int = 10) -> str:
-        """获取上下文摘要"""
+        """Get context summary"""
         if not self.messages:
             return ""
         
@@ -71,7 +71,7 @@ class ChatSession:
         context_parts = []
         
         for msg in recent_messages:
-            role_name = "用户" if msg.role == "user" else "客服"
+            role_name = "User" if msg.role == "user" else "Assistant"
             context_parts.append(f"{role_name}: {msg.content}")
         
         return "\n".join(context_parts)
@@ -105,23 +105,23 @@ class ChatSession:
 
 
 class SessionManager:
-    """会话管理器"""
+    """Session Manager"""
 
     def __init__(self):
         self.db = db_manager
-        logger.info("会话管理器初始化完成")
+        logger.info("Session manager initialized")
 
     def create_session(self, user_id: str = None, title: str = None) -> ChatSession:
         """
-        创建新会话（只创建数据库记录）
-        注意：RAGFlow会话的创建由session_agent_manager在第一次对话时自动创建
+        Create new session (only create database record)
+        Note: RAGFlow session creation is automatically handled by session_agent_manager on first conversation
         """
         session_id = str(uuid4())
         user_id = user_id or "anonymous"
-        title = title or f"聊天会话 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        title = title or f"Chat Session {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         try:
-            # 插入会话到数据库（ragflow_session_id暂时为NULL，后续由agent管理）
+            # Insert session into database (ragflow_session_id is NULL initially, managed by agent later)
             query = """
                 INSERT INTO chat_sessions (session_id, user_id, title, context, ragflow_session_id)
                 VALUES (%s, %s, %s, %s, %s)
@@ -129,19 +129,19 @@ class SessionManager:
             params = (session_id, user_id, title, json.dumps({}), None)
             self.db.execute_update(query, params)
             
-            # 创建会话对象
+            # Create session object
             session = ChatSession(session_id=session_id, user_id=user_id, title=title, ragflow_session_id=None)
-            logger.info(f"创建新会话: {session_id}")
+            logger.info(f"Created new session: {session_id}")
             return session
             
         except Exception as e:
-            logger.error(f"创建会话失败: {e}")
+            logger.error(f"Failed to create session: {e}")
             raise
 
     def get_session(self, session_id: str) -> Optional[ChatSession]:
-        """获取会话"""
+        """Get session"""
         try:
-            # 查询会话信息
+            # Query session information
             session_query = "SELECT * FROM chat_sessions WHERE session_id = %s"
             session_data = self.db.execute_query(session_query, (session_id,))
             
@@ -159,7 +159,7 @@ class SessionManager:
             session.updated_at = session_row[4]
             session.context = json.loads(session_row[5]) if session_row[5] else {}
             
-            # 查询消息
+            # Query messages
             messages_query = """
                 SELECT id, role, content, timestamp 
                 FROM chat_messages 
@@ -180,11 +180,11 @@ class SessionManager:
             return session
             
         except Exception as e:
-            logger.error(f"获取会话失败: {e}")
+            logger.error(f"Failed to get session: {e}")
             return None
 
     def get_user_sessions(self, user_id: str) -> List[ChatSession]:
-        """获取用户的所有会话"""
+        """Get all sessions for a user"""
         try:
             query = """
                 SELECT session_id FROM chat_sessions 
@@ -202,15 +202,15 @@ class SessionManager:
             return sessions
             
         except Exception as e:
-            logger.error(f"获取用户会话失败: {e}")
+            logger.error(f"Failed to get user sessions: {e}")
             return []
 
     def add_message(self, session_id: str, role: str, content: str) -> Optional[ChatMessage]:
-        """添加消息到会话"""
+        """Add message to session"""
         try:
             message_id = str(uuid4())
             
-            # 插入消息到数据库
+            # Insert message into database
             query = """
                 INSERT INTO chat_messages (id, session_id, role, content)
                 VALUES (%s, %s, %s, %s)
@@ -218,68 +218,68 @@ class SessionManager:
             params = (message_id, session_id, role, content)
             self.db.execute_update(query, params)
             
-            # 如果是第一条用户消息，自动更新会话标题
+            # If it's the first user message, automatically update session title
             if role == 'user':
-                # 检查是否是第一条用户消息
+                # Check if it's the first user message
                 count_query = """
                     SELECT COUNT(*) FROM chat_messages 
                     WHERE session_id = %s AND role = 'user'
                 """
                 count_result = self.db.execute_query(count_query, (session_id,))
-                if count_result and count_result[0][0] == 1:  # 第一条用户消息
-                    # 生成基于内容的标题（截取前30个字符）
+                if count_result and count_result[0][0] == 1:  # First user message
+                    # Generate title based on content (truncate to first 30 characters)
                     new_title = content[:30] + ('...' if len(content) > 30 else '')
                     title_update_query = "UPDATE chat_sessions SET title = %s WHERE session_id = %s"
                     self.db.execute_update(title_update_query, (new_title, session_id))
             
-            # 更新会话的更新时间
+            # Update session's update time
             update_query = "UPDATE chat_sessions SET updated_at = NOW() WHERE session_id = %s"
             self.db.execute_update(update_query, (session_id,))
             
-            # 创建消息对象
+            # Create message object
             message = ChatMessage(role, content)
             message.id = message_id
             
-            logger.info(f"添加消息到会话 {session_id}: {role}")
+            logger.info(f"Added message to session {session_id}: {role}")
             return message
             
         except Exception as e:
-            logger.error(f"添加消息失败: {e}")
+            logger.error(f"Failed to add message: {e}")
             return None
 
     def update_session_title(self, session_id: str, title: str):
-        """更新会话标题"""
+        """Update session title"""
         try:
             query = "UPDATE chat_sessions SET title = %s, updated_at = NOW() WHERE session_id = %s"
             self.db.execute_update(query, (title, session_id))
-            logger.info(f"更新会话标题: {session_id}")
+            logger.info(f"Updated session title: {session_id}")
             
         except Exception as e:
-            logger.error(f"更新会话标题失败: {e}")
+            logger.error(f"Failed to update session title: {e}")
 
     def delete_session(self, session_id: str) -> bool:
         """
-        删除会话（只删除数据库记录）
-        注意：RAGFlow会话的删除由session_agent_manager负责
+        Delete session (only delete database record)
+        Note: RAGFlow session deletion is handled by session_agent_manager
         """
         try:
-            # 删除本地会话（由于外键约束，删除会话会自动删除相关消息）
+            # Delete local session (due to foreign key constraints, deleting session will automatically delete related messages)
             query = "DELETE FROM chat_sessions WHERE session_id = %s"
             affected_rows = self.db.execute_update(query, (session_id,))
             
             if affected_rows > 0:
-                logger.info(f"删除本地会话: {session_id}")
+                logger.info(f"Deleted local session: {session_id}")
                 return True
             else:
-                logger.warning(f"会话不存在: {session_id}")
+                logger.warning(f"Session does not exist: {session_id}")
                 return False
                 
         except Exception as e:
-            logger.error(f"删除会话失败: {e}")
+            logger.error(f"Failed to delete session: {e}")
             return False
 
     def get_all_sessions(self) -> List[ChatSession]:
-        """获取所有会话"""
+        """Get all sessions"""
         try:
             query = "SELECT session_id FROM chat_sessions ORDER BY updated_at DESC"
             sessions_data = self.db.execute_query(query)
@@ -293,28 +293,28 @@ class SessionManager:
             return sessions
             
         except Exception as e:
-            logger.error(f"获取所有会话失败: {e}")
+            logger.error(f"Failed to get all sessions: {e}")
             return []
 
     def cleanup_old_sessions(self, days: int = 30):
         """
-        清理旧会话
-        注意：这个方法只清理数据库记录，不清理Agent
-        如需清理Agent，请调用session_agent_manager.cleanup_inactive_sessions()
+        Clean up old sessions
+        Note: This method only cleans up database records, not Agents
+        To clean up Agents, call session_agent_manager.cleanup_inactive_sessions()
         """
         try:
-            # 先获取要删除的session IDs
+            # First get session IDs to delete
             select_query = "SELECT session_id FROM chat_sessions WHERE updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)"
             old_sessions = self.db.execute_query(select_query, (days,))
             
             if not old_sessions:
-                logger.info("没有需要清理的旧会话")
+                logger.info("No old sessions to clean up")
                 return
             
-            # 删除数据库记录
+            # Delete database records
             delete_query = "DELETE FROM chat_sessions WHERE updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)"
             affected_rows = self.db.execute_update(delete_query, (days,))
-            logger.info(f"清理了 {affected_rows} 个旧会话（数据库记录）")
+            logger.info(f"Cleaned up {affected_rows} old sessions (database records)")
             
         except Exception as e:
-            logger.error(f"清理旧会话失败: {e}")
+            logger.error(f"Failed to clean up old sessions: {e}")

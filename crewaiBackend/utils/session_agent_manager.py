@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-会话Agent管理器
+Session Agent Manager
 
-架构说明：
-- RAGFlow和SQL在程序启动时拉起，全局共享
-- Agent在session第一次对话时创建，session删除时释放
-- session存在时复用Agent，避免重复创建
+Architecture:
+- RAGFlow and SQL are started at program startup, globally shared
+- Agent is created on first conversation of session, released when session is deleted
+- Reuse Agent when session exists to avoid duplicate creation
 
-Session ID映射关系：
-- 一个应用session_id对应一个RAGFlow session_id（一对一映射）
-- RAGFlow session在第一次对话时由SessionAgent自动创建
-- 删除应用session时，自动删除对应的RAGFlow session
+Session ID mapping:
+- One application session_id corresponds to one RAGFlow session_id (one-to-one mapping)
+- RAGFlow session is automatically created by SessionAgent on first conversation
+- When application session is deleted, corresponding RAGFlow session is automatically deleted
 
-生命周期管理：
-1. 创建会话：只创建数据库记录，不创建RAGFlow会话
-2. 第一次对话：创建SessionAgent，自动创建RAGFlow会话
-3. 后续对话：复用已有的SessionAgent和RAGFlow会话
-4. 删除会话：先释放Agent（删除RAGFlow会话），再删除数据库记录
-5. 清理非活跃会话：自动释放Agent并删除RAGFlow会话
+Lifecycle management:
+1. Create session: Only create database record, do not create RAGFlow session
+2. First conversation: Create SessionAgent, automatically create RAGFlow session
+3. Subsequent conversations: Reuse existing SessionAgent and RAGFlow session
+4. Delete session: First release Agent (delete RAGFlow session), then delete database record
+5. Clean up inactive sessions: Automatically release Agent and delete RAGFlow session
 """
 
 import threading
@@ -32,78 +32,78 @@ from .ragflow_session_manager import ragflow_session_manager
 logger = logging.getLogger(__name__)
 
 class SessionAgentManager:
-    """会话Agent管理器"""
+    """Session Agent Manager"""
     
     def __init__(self):
-        """初始化管理器"""
+        """Initialize manager"""
         self.session_agents: Dict[str, 'SessionAgent'] = {}
         self.lock = threading.Lock()
         
-        # 全局共享资源（程序启动时创建）
+        # Globally shared resources (created at program startup)
         self.shared_llm = None
         self._init_shared_resources()
     
     def _init_shared_resources(self):
-        """初始化全局共享资源"""
+        """Initialize globally shared resources"""
         try:
-            # 创建共享LLM实例
+            # Create shared LLM instance
             self.shared_llm = my_llm("google")
-            logger.info("全局LLM实例创建成功")
+            logger.info("Global LLM instance created successfully")
             
         except Exception as e:
-            logger.error(f"初始化全局资源失败: {e}")
+            logger.error(f"Failed to initialize global resources: {e}")
             raise
     
     def get_or_create_agent(self, session_id: str) -> 'SessionAgent':
         """
-        获取或创建会话Agent
+        Get or create session Agent
         
         Args:
-            session_id: 会话ID
+            session_id: Session ID
             
         Returns:
-            SessionAgent实例
+            SessionAgent instance
         """
         with self.lock:
-            # 检查是否已有该会话的Agent
+            # Check if Agent already exists for this session
             if session_id in self.session_agents:
                 agent = self.session_agents[session_id]
                 agent.update_last_used()
-                logger.info(f"🔄 复用会话 {session_id} 的Agent")
+                logger.info(f"🔄 Reusing Agent for session {session_id}")
                 return agent
             
-            # 创建新Agent
+            # Create new Agent
             agent = SessionAgent(
                 session_id=session_id,
                 llm=self.shared_llm
             )
             
             self.session_agents[session_id] = agent
-            logger.info(f"🆕 为会话 {session_id} 创建新Agent，当前会话数: {len(self.session_agents)}")
+            logger.info(f"🆕 Created new Agent for session {session_id}, current session count: {len(self.session_agents)}")
             return agent
     
     def release_agent(self, session_id: str):
         """
-        释放会话Agent，同时删除对应的RAGFlow会话
+        Release session Agent, simultaneously delete corresponding RAGFlow session
         
         Args:
-            session_id: 会话ID
+            session_id: Session ID
         """
         with self.lock:
             if session_id in self.session_agents:
                 agent = self.session_agents[session_id]
                 
-                # 清理资源（包括删除RAGFlow会话）
+                # Clean up resources (including deleting RAGFlow session)
                 agent.cleanup()
                 
-                # 从字典中移除
+                # Remove from dictionary
                 del self.session_agents[session_id]
-                logger.info(f"释放会话 {session_id} 的Agent，当前会话数: {len(self.session_agents)}")
+                logger.info(f"Released Agent for session {session_id}, current session count: {len(self.session_agents)}")
             else:
-                logger.warning(f"尝试释放不存在的会话 {session_id}")
+                logger.warning(f"Attempting to release non-existent session {session_id}")
     
     def get_session_status(self) -> Dict:
-        """获取所有会话状态"""
+        """Get all session status"""
         with self.lock:
             return {
                 'total_sessions': len(self.session_agents),
@@ -120,10 +120,10 @@ class SessionAgentManager:
     
     def cleanup_inactive_sessions(self, max_age_seconds: int = 1800):
         """
-        清理非活跃会话，同时删除对应的RAGFlow会话
+        Clean up inactive sessions, simultaneously delete corresponding RAGFlow sessions
         
         Args:
-            max_age_seconds: 最大非活跃时间（秒）
+            max_age_seconds: Maximum inactive time (seconds)
         """
         with self.lock:
             now = datetime.now()
@@ -133,19 +133,19 @@ class SessionAgentManager:
             ]
             
             for session_id, agent in inactive_sessions:
-                # 清理资源（包括删除RAGFlow会话）
+                # Clean up resources (including deleting RAGFlow session)
                 agent.cleanup()
                 
-                # 从字典中移除
+                # Remove from dictionary
                 del self.session_agents[session_id]
-                logger.info(f"清理非活跃会话 {session_id}")
+                logger.info(f"Cleaned up inactive session {session_id}")
             
             if inactive_sessions:
-                logger.info(f"清理完成，释放 {len(inactive_sessions)} 个非活跃会话")
+                logger.info(f"Cleanup completed, released {len(inactive_sessions)} inactive sessions")
 
 
 class SessionAgent:
-    """会话Agent实例"""
+    """Session Agent instance"""
     
     def __init__(self, session_id: str, llm):
         self.session_id = session_id
@@ -153,101 +153,101 @@ class SessionAgent:
         self.created_at = datetime.now()
         self.last_used = datetime.now()
         
-        # 创建一个共享的Crew工具实例（用于复用crew.py中的定义）
+        # Create a shared Crew helper instance (for reusing definitions from crew.py)
         from ..crew import CrewtestprojectCrew
         self._crew_helper = CrewtestprojectCrew(job_id="temp", llm=self.llm)
         
-        # 创建Agent（只创建一次）
+        # Create Agent (only create once)
         self.agents = self._create_agents()
         self.crew = self._create_crew()
     
     def update_last_used(self):
-        """更新最后使用时间"""
+        """Update last used time"""
         self.last_used = datetime.now()
     
     def _create_agents(self):
-        """创建Agent（从crew.py复用定义）"""
-        # 使用共享的crew helper实例
+        """Create Agent (reuse definitions from crew.py)"""
+        # Use shared crew helper instance
         agents_dict = self._crew_helper.create_agents()
         return agents_dict
     
     def _create_crew(self):
-        """创建Crew（复用crew.py中的定义）"""
-        # 使用crew.py中的create_crew方法
+        """Create Crew (reuse definitions from crew.py)"""
+        # Use create_crew method from crew.py
         return self._crew_helper.create_crew(
             agents=self.agents,
-            tasks=[]  # 任务在kickoff时动态创建
+            tasks=[]  # Tasks are dynamically created at kickoff
         )
     
     def kickoff(self, inputs):
-        """执行任务"""
-        # 更新使用时间
+        """Execute task"""
+        # Update usage time
         self.update_last_used()
         
-        # 动态创建任务
+        # Dynamically create tasks
         tasks = self._create_tasks(inputs)
         
-        # 更新Crew的任务
+        # Update Crew's tasks
         self.crew.tasks = tasks
         
-        # 执行任务
+        # Execute task
         return self.crew.kickoff()
     
     def _create_tasks(self, inputs):
-        """根据输入动态创建任务（从crew.py复用定义）"""
+        """Dynamically create tasks based on inputs (reuse definitions from crew.py)"""
         from crewai import Task
         
-        # 导入crew.py中的类
+        # Import class from crew.py
         from ..crew import CrewtestprojectCrew
         
-        # 确保RAGFlow session_id已创建并更新到数据库
+        # Ensure RAGFlow session_id is created and updated to database
         session_id = inputs.get('session_id', '')
         ragflow_session_id = None
         
         if session_id:
-            # 使用ragflow_session_manager获取或创建RAGFlow session ID
+            # Use ragflow_session_manager to get or create RAGFlow session ID
             ragflow_session_id = ragflow_session_manager.get_or_create_session(session_id)
             
-            # 更新数据库中的ragflow_session_id
+            # Update ragflow_session_id in database
             if ragflow_session_id:
                 try:
                     from ..utils.sessionManager import SessionManager
                     session_manager = SessionManager()
                     session = session_manager.get_session(session_id)
                     
-                    # 检查数据库中的ragflow_session_id是否与内存中的一致
+                    # Check if ragflow_session_id in database matches the one in memory
                     db_ragflow_session_id = session.ragflow_session_id if session else None
                     
                     if db_ragflow_session_id != ragflow_session_id:
-                        # 更新数据库记录（无论是新建还是不一致都更新）
+                        # Update database record (update whether new or inconsistent)
                         from ..utils.database import db_manager
                         query = "UPDATE chat_sessions SET ragflow_session_id = %s WHERE session_id = %s"
                         db_manager.execute_update(query, (ragflow_session_id, session_id))
-                        logger.info(f"[会话:{session_id[:8]}] 已将RAGFlow session_id更新到数据库: {ragflow_session_id[:8]}")
+                        logger.info(f"[Session:{session_id[:8]}] Updated RAGFlow session_id to database: {ragflow_session_id[:8]}")
                     
-                    # 将 ragflow_session_id 直接传入 inputs，避免 crew.py 中的导入问题
-                    inputs = inputs.copy()  # 避免修改原始 inputs
+                    # Pass ragflow_session_id directly to inputs to avoid import issues in crew.py
+                    inputs = inputs.copy()  # Avoid modifying original inputs
                     inputs['ragflow_session_id'] = ragflow_session_id
-                    logger.info(f"[会话:{session_id[:8]}] 传递RAGFlow session_id到任务: {ragflow_session_id[:8]}")
+                    logger.info(f"[Session:{session_id[:8]}] Passing RAGFlow session_id to task: {ragflow_session_id[:8]}")
                     
                 except Exception as e:
-                    logger.warning(f"[会话:{session_id[:8]}] 更新RAGFlow session_id到数据库失败: {e}")
+                    logger.warning(f"[Session:{session_id[:8]}] Failed to update RAGFlow session_id to database: {e}")
         
-        # 使用共享的crew helper来创建tasks
+        # Use shared crew helper to create tasks
         tasks = self._crew_helper.create_tasks(self.agents, inputs)
         
         return tasks
     
     def cleanup(self):
         """
-        清理会话资源，包括删除对应的RAGFlow会话
+        Clean up session resources, including deleting corresponding RAGFlow session
         """
         try:
-            # 使用ragflow_session_manager删除RAGFlow会话
+            # Use ragflow_session_manager to delete RAGFlow session
             ragflow_session_manager.delete_session(self.session_id)
         except Exception as e:
-            logger.error(f"[会话:{self.session_id[:8]}] 清理RAGFlow会话失败: {e}")
+            logger.error(f"[Session:{self.session_id[:8]}] Failed to clean up RAGFlow session: {e}")
 
 
-# 全局会话Agent管理器实例
+# Global session Agent manager instance
 session_agent_manager = SessionAgentManager()

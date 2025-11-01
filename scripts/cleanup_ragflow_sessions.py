@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-RAGFlow会话清理脚本
-清理RAGFlow中的所有会话数据
+RAGFlow Session Cleanup Script
+Clean up all session data in RAGFlow
 """
 
 import requests
@@ -10,15 +10,15 @@ import os
 import sys
 
 def cleanup_ragflow_sessions():
-    """清理RAGFlow中的所有会话"""
+    """Clean up all sessions in RAGFlow"""
     
-    # 从环境变量读取配置
+    # Read configuration from environment variables
     base_url = os.environ.get('RAGFLOW_BASE_URL', 'http://localhost:9380')
     api_key = os.environ.get('RAGFLOW_API_KEY')
     
     if not api_key:
-        print("❌ 错误: RAGFLOW_API_KEY 环境变量未设置")
-        print("请设置环境变量: export RAGFLOW_API_KEY=your_api_key")
+        print("❌ Error: RAGFLOW_API_KEY environment variable not set")
+        print("Please set environment variable: export RAGFLOW_API_KEY=your_api_key")
         sys.exit(1)
     
     headers = {
@@ -27,44 +27,44 @@ def cleanup_ragflow_sessions():
     }
     
     try:
-        print(f"🔍 连接RAGFlow: {base_url}")
+        print(f"🔍 Connecting to RAGFlow: {base_url}")
         
-        # 获取所有聊天列表
+        # Get all chat list
         response = requests.get(f'{base_url}/api/v1/chats', headers=headers)
         
         if response.status_code == 200:
             chats = response.json().get('data', [])
-            print(f"📊 找到 {len(chats)} 个聊天会话")
+            print(f"📊 Found {len(chats)} chat sessions")
             
             if len(chats) == 0:
-                print("✅ 没有找到需要清理的会话")
+                print("✅ No sessions found that need cleanup")
                 return
             
-            # 删除每个聊天会话
+            # Delete each chat session
             deleted_count = 0
             for chat in chats:
                 chat_id = chat.get('id')
                 if chat_id:
                     delete_response = requests.delete(f'{base_url}/api/v1/chats/{chat_id}', headers=headers)
                     if delete_response.status_code == 200:
-                        print(f"✅ 已删除会话: {chat_id}")
+                        print(f"✅ Deleted session: {chat_id}")
                         deleted_count += 1
                     else:
-                        print(f"❌ 删除失败: {chat_id} - {delete_response.status_code}")
+                        print(f"❌ Deletion failed: {chat_id} - {delete_response.status_code}")
             
-            print(f"🎉 清理完成！共删除 {deleted_count} 个会话")
+            print(f"🎉 Cleanup completed! Deleted {deleted_count} sessions in total")
             
         else:
-            print(f"❌ 获取聊天列表失败: {response.status_code}")
-            print(f"响应内容: {response.text}")
+            print(f"❌ Failed to get chat list: {response.status_code}")
+            print(f"Response content: {response.text}")
             sys.exit(1)
             
     except requests.exceptions.ConnectionError:
-        print("❌ 连接失败: 无法连接到RAGFlow服务")
-        print("请确保RAGFlow服务正在运行")
+        print("❌ Connection failed: Unable to connect to RAGFlow service")
+        print("Please ensure RAGFlow service is running")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ 清理过程中出错: {str(e)}")
+        print(f"❌ Error occurred during cleanup: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

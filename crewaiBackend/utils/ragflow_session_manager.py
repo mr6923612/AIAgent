@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-RAGFlow会话管理器
+RAGFlow Session Manager
 
-专门负责管理RAGFlow会话的创建、映射和删除
-- 维护应用session_id到RAGFlow session_id的一对一映射
-- 提供RAGFlow会话的创建、获取、删除接口
-- 从数据库加载已有的映射关系，确保重启后映射不丢失
+Specifically responsible for managing RAGFlow session creation, mapping, and deletion
+- Maintains one-to-one mapping from application session_id to RAGFlow session_id
+- Provides RAGFlow session creation, retrieval, and deletion interfaces
+- Loads existing mappings from database to ensure mappings are not lost after restart
 """
 
 import logging
@@ -16,91 +16,91 @@ logger = logging.getLogger(__name__)
 
 
 class RAGFlowSessionManager:
-    """RAGFlow会话管理器（单例模式）"""
+    """RAGFlow Session Manager (Singleton Pattern)"""
     
     _instance = None
     _initialized = False
     
     def __new__(cls):
-        """单例模式：确保全局只有一个实例"""
+        """Singleton pattern: ensure only one global instance"""
         if cls._instance is None:
             cls._instance = super(RAGFlowSessionManager, cls).__new__(cls)
         return cls._instance
     
     def __init__(self):
-        """初始化管理器"""
-        # 避免重复初始化
+        """Initialize manager"""
+        # Avoid duplicate initialization
         if self._initialized:
-            logger.info("[RAGFlow] 使用已有的 RAGFlow 会话管理器实例")
+            logger.info("[RAGFlow] Using existing RAGFlow session manager instance")
             return
         
-        # RAGFlow会话ID映射：{应用session_id: RAGFlow session_id}
+        # RAGFlow session ID mapping: {app_session_id: RAGFlow session_id}
         self.session_mapping: Dict[str, str] = {}
         
-        # 全局共享的RAGFlow客户端
+        # Globally shared RAGFlow client
         self.ragflow_client = create_ragflow_client()
         
-        # 从数据库加载已有的映射关系
+        # Load existing mappings from database
         self._load_mappings_from_database()
         
-        logger.info(f"RAGFlow会话管理器初始化完成，已加载 {len(self.session_mapping)} 个会话映射")
+        logger.info(f"RAGFlow session manager initialized, loaded {len(self.session_mapping)} session mappings")
         
-        # 启动时清理无效的RAGFlow会话
+        # Clean up invalid RAGFlow sessions on startup
         self._cleanup_invalid_sessions()
         
-        # 标记为已初始化
+        # Mark as initialized
         self._initialized = True
     
     def _load_mappings_from_database(self):
-        """从数据库加载已有的RAGFlow会话映射"""
+        """Load existing RAGFlow session mappings from database"""
         try:
             from .database import db_manager
             
-            # 查询所有有RAGFlow session ID的会话
+            # Query all sessions with RAGFlow session ID
             query = """
                 SELECT session_id, ragflow_session_id 
                 FROM chat_sessions 
                 WHERE ragflow_session_id IS NOT NULL
             """
-            logger.info(f"[RAGFlow] 正在从数据库加载会话映射，查询SQL: {query}")
+            logger.info(f"[RAGFlow] Loading session mappings from database, SQL query: {query}")
             results = db_manager.execute_query(query)
             
-            logger.info(f"[RAGFlow] 数据库查询结果类型: {type(results)}, 长度: {len(results) if results else 'None'}")
+            logger.info(f"[RAGFlow] Database query result type: {type(results)}, length: {len(results) if results else 'None'}")
             
             if results:
                 for row in results:
                     app_session_id = row[0]
                     ragflow_session_id = row[1]
                     self.session_mapping[app_session_id] = ragflow_session_id
-                    logger.info(f"[RAGFlow] 加载映射: {app_session_id[:8]} -> {ragflow_session_id[:8] if ragflow_session_id else 'None'}")
+                    logger.info(f"[RAGFlow] Loaded mapping: {app_session_id[:8]} -> {ragflow_session_id[:8] if ragflow_session_id else 'None'}")
                 
-                logger.info(f"[RAGFlow] 从数据库加载了 {len(results)} 个会话映射")
+                logger.info(f"[RAGFlow] Loaded {len(results)} session mappings from database")
             else:
-                logger.info("[RAGFlow] 数据库中没有已有的会话映射")
+                logger.info("[RAGFlow] No existing session mappings in database")
                 
         except Exception as e:
-            logger.warning(f"[RAGFlow] 从数据库加载映射失败（可能数据库未连接）: {e}")
+            logger.warning(f"[RAGFlow] Failed to load mappings from database (database may not be connected): {e}")
             import traceback
-            logger.warning(f"[RAGFlow] 错误堆栈: {traceback.format_exc()}")
+            logger.warning(f"[RAGFlow] Error stack: {traceback.format_exc()}")
     
     def get_or_create_session(self, app_session_id: str, session_name: str = None) -> Optional[str]:
         """
-        获取或创建RAGFlow会话ID
+        Get or create RAGFlow session ID
         
         Args:
-            app_session_id: 应用会话ID
-            session_name: 会话名称（可选）
+            app_session_id: Application session ID
+            session_name: Session name (optional)
             
         Returns:
-            RAGFlow会话ID，失败时返回None
+            RAGFlow session ID, returns None on failure
         """
-        # 1. 先检查内存映射
+        # 1. First check memory mapping
         if app_session_id in self.session_mapping:
             ragflow_session_id = self.session_mapping[app_session_id]
-            logger.info(f"[RAGFlow] 从内存复用已有会话: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
+            logger.info(f"[RAGFlow] Reusing existing session from memory: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
             return ragflow_session_id
         
-        # 2. 如果内存中没有，从数据库查询（处理进程重启后的情况）
+        # 2. If not in memory, query database (handle post-restart scenario)
         try:
             from .database import db_manager
             query = "SELECT ragflow_session_id FROM chat_sessions WHERE session_id = %s AND ragflow_session_id IS NOT NULL"
@@ -108,17 +108,17 @@ class RAGFlowSessionManager:
             
             if results and len(results) > 0:
                 ragflow_session_id = results[0][0]
-                # 将数据库中的映射加载到内存
+                # Load mapping from database into memory
                 self.session_mapping[app_session_id] = ragflow_session_id
-                logger.info(f"[RAGFlow] 从数据库恢复会话映射: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
+                logger.info(f"[RAGFlow] Restored session mapping from database: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
                 return ragflow_session_id
         except Exception as e:
-            logger.warning(f"[RAGFlow] 从数据库查询会话映射失败: {e}")
+            logger.warning(f"[RAGFlow] Failed to query session mapping from database: {e}")
         
-        # 3. 如果数据库中也没有，创建新的RAGFlow会话
+        # 3. If not in database either, create new RAGFlow session
         try:
-            name = session_name or f"会话_{app_session_id[:8]}"
-            logger.info(f"[RAGFlow] 创建新会话: {app_session_id[:8]}")
+            name = session_name or f"Session_{app_session_id[:8]}"
+            logger.info(f"[RAGFlow] Creating new session: {app_session_id[:8]}")
             
             session_data = self.ragflow_client.create_session(
                 chat_id=DEFAULT_CHAT_ID,
@@ -129,74 +129,74 @@ class RAGFlowSessionManager:
             ragflow_session_id = session_data.get('id', '')
             
             if ragflow_session_id:
-                # 建立映射关系
+                # Establish mapping relationship
                 self.session_mapping[app_session_id] = ragflow_session_id
-                logger.info(f"[RAGFlow] 会话创建成功: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
+                logger.info(f"[RAGFlow] Session created successfully: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
                 return ragflow_session_id
             else:
-                logger.error(f"[RAGFlow] 会话创建失败：返回数据中没有id")
+                logger.error(f"[RAGFlow] Session creation failed: no id in returned data")
                 return None
                 
         except Exception as e:
-            logger.error(f"[RAGFlow] 会话创建失败: {e}")
+            logger.error(f"[RAGFlow] Session creation failed: {e}")
             return None
     
     def get_session_id(self, app_session_id: str) -> Optional[str]:
         """
-        获取RAGFlow会话ID（不创建新的）
+        Get RAGFlow session ID (without creating new one)
         
         Args:
-            app_session_id: 应用会话ID
+            app_session_id: Application session ID
             
         Returns:
-            RAGFlow会话ID，不存在时返回None
+            RAGFlow session ID, returns None if not found
         """
         return self.session_mapping.get(app_session_id)
     
     def delete_session(self, app_session_id: str) -> bool:
         """
-        删除RAGFlow会话
+        Delete RAGFlow session
         
         Args:
-            app_session_id: 应用会话ID
+            app_session_id: Application session ID
             
         Returns:
-            删除是否成功
+            Whether deletion was successful
         """
-        # 获取RAGFlow会话ID
+        # Get RAGFlow session ID
         ragflow_session_id = self.session_mapping.get(app_session_id)
         
         if not ragflow_session_id:
-            logger.warning(f"[RAGFlow] 会话不存在，无需删除: {app_session_id[:8]}")
-            return True  # 不存在视为成功
+            logger.warning(f"[RAGFlow] Session does not exist, no need to delete: {app_session_id[:8]}")
+            return True  # Non-existence is considered success
         
         try:
-            logger.info(f"[RAGFlow] 删除会话: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
+            logger.info(f"[RAGFlow] Deleting session: {app_session_id[:8]} -> {ragflow_session_id[:8]}")
             
             self.ragflow_client.delete_session(
                 chat_id=DEFAULT_CHAT_ID,
                 session_id=ragflow_session_id
             )
             
-            # 移除映射关系
+            # Remove mapping relationship
             del self.session_mapping[app_session_id]
             
-            logger.info(f"[RAGFlow] 会话删除成功: {app_session_id[:8]}")
+            logger.info(f"[RAGFlow] Session deleted successfully: {app_session_id[:8]}")
             return True
             
         except Exception as e:
-            logger.error(f"[RAGFlow] 会话删除失败: {e}")
-            # 即使删除失败，也移除映射关系
+            logger.error(f"[RAGFlow] Session deletion failed: {e}")
+            # Even if deletion fails, remove mapping relationship
             if app_session_id in self.session_mapping:
                 del self.session_mapping[app_session_id]
             return False
     
     def cleanup_all_sessions(self) -> int:
         """
-        清理所有RAGFlow会话
+        Clean up all RAGFlow sessions
         
         Returns:
-            清理的会话数量
+            Number of sessions cleaned up
         """
         count = 0
         session_ids = list(self.session_mapping.keys())
@@ -205,43 +205,43 @@ class RAGFlowSessionManager:
             if self.delete_session(app_session_id):
                 count += 1
         
-        logger.info(f"[RAGFlow] 清理完成，共删除 {count} 个会话")
+        logger.info(f"[RAGFlow] Cleanup completed, deleted {count} sessions")
         return count
     
     def get_mapping_count(self) -> int:
-        """获取当前映射的会话数量"""
+        """Get current number of mapped sessions"""
         return len(self.session_mapping)
     
     def get_mappings(self) -> Dict[str, str]:
-        """获取所有映射关系"""
+        """Get all mapping relationships"""
         return self.session_mapping.copy()
     
     def _cleanup_invalid_sessions(self):
         """
-        启动时清理无效的RAGFlow会话
+        Clean up invalid RAGFlow sessions on startup
         
-        清理策略（双向清理）：
-        1. 获取RAGFlow中的所有session
-        2. 获取数据库中的所有session映射
-        3. 双向清理：
-           a) 如果数据库中的ragflow_session_id在RAGFlow中不存在，清空数据库字段
-           b) 如果RAGFlow中的session_id不在数据库映射中，删除RAGFlow会话
+        Cleanup strategy (bidirectional cleanup):
+        1. Get all sessions from RAGFlow
+        2. Get all session mappings from database
+        3. Bidirectional cleanup:
+           a) If ragflow_session_id in database doesn't exist in RAGFlow, clear database field
+           b) If session_id in RAGFlow is not in database mappings, delete RAGFlow session
         """
         try:
-            logger.info("[RAGFlow] 开始清理无效会话...")
+            logger.info("[RAGFlow] Starting to clean up invalid sessions...")
             
-            # 获取RAGFlow中所有的sessions
+            # Get all sessions from RAGFlow
             ragflow_sessions = self._get_all_ragflow_sessions()
             if ragflow_sessions is None:
-                logger.warning("[RAGFlow] 无法获取RAGFlow会话列表，跳过清理")
+                logger.warning("[RAGFlow] Unable to get RAGFlow session list, skipping cleanup")
                 return
             
             ragflow_session_ids = set(ragflow_sessions.keys())
-            logger.info(f"[RAGFlow] RAGFlow中有 {len(ragflow_session_ids)} 个会话")
+            logger.info(f"[RAGFlow] RAGFlow has {len(ragflow_session_ids)} sessions")
             
             from .database import db_manager
             
-            # === 步骤 1：获取数据库中所有的 ragflow_session_id ===
+            # === Step 1: Get all ragflow_session_id from database ===
             query = """
                 SELECT session_id, ragflow_session_id 
                 FROM chat_sessions 
@@ -249,7 +249,7 @@ class RAGFlowSessionManager:
             """
             db_results = db_manager.execute_query(query)
             
-            # 构建数据库映射：{ragflow_session_id: app_session_id}
+            # Build database mapping: {ragflow_session_id: app_session_id}
             db_mapping = {}
             if db_results:
                 for row in db_results:
@@ -258,34 +258,34 @@ class RAGFlowSessionManager:
                     db_mapping[db_ragflow_session_id] = app_session_id
             
             db_ragflow_session_ids = set(db_mapping.keys())
-            logger.info(f"[RAGFlow] 数据库中有 {len(db_ragflow_session_ids)} 个会话映射")
+            logger.info(f"[RAGFlow] Database has {len(db_ragflow_session_ids)} session mappings")
             
-            # === 步骤 2：清理数据库中的无效映射 ===
-            # 如果数据库中的 ragflow_session_id 在 RAGFlow 中不存在，清空数据库字段
+            # === Step 2: Clean up invalid mappings in database ===
+            # If ragflow_session_id in database doesn't exist in RAGFlow, clear database field
             db_invalid_count = 0
             for db_ragflow_session_id, app_session_id in list(db_mapping.items()):
                 if db_ragflow_session_id not in ragflow_session_ids:
-                    # 清空数据库中的ragflow_session_id
+                    # Clear ragflow_session_id in database
                     update_query = "UPDATE chat_sessions SET ragflow_session_id = NULL WHERE session_id = %s"
                     db_manager.execute_update(update_query, (app_session_id,))
                     
-                    # 从内存映射中删除
+                    # Remove from memory mapping
                     if app_session_id in self.session_mapping:
                         del self.session_mapping[app_session_id]
                     
-                    # 从 db_ragflow_session_ids 中移除，这样不会保护这个无效的 session
+                    # Remove from db_ragflow_session_ids so this invalid session won't be protected
                     db_ragflow_session_ids.discard(db_ragflow_session_id)
                     
                     db_invalid_count += 1
-                    logger.info(f"[RAGFlow] 清理数据库无效映射: {app_session_id[:8]} -> {db_ragflow_session_id[:8]}")
+                    logger.info(f"[RAGFlow] Cleaned invalid database mapping: {app_session_id[:8]} -> {db_ragflow_session_id[:8]}")
             
-            # === 步骤 3：清理RAGFlow中的孤立会话 ===
-            # 找出 RAGFlow 中存在但数据库中没有记录的会话（孤立会话）
+            # === Step 3: Clean up orphaned sessions in RAGFlow ===
+            # Find sessions that exist in RAGFlow but have no database records (orphaned sessions)
             orphaned_sessions = ragflow_session_ids - db_ragflow_session_ids
             ragflow_deleted_count = 0
             
             if orphaned_sessions:
-                logger.info(f"[RAGFlow] 发现 {len(orphaned_sessions)} 个孤立会话，准备删除...")
+                logger.info(f"[RAGFlow] Found {len(orphaned_sessions)} orphaned sessions, preparing to delete...")
                 for orphaned_session_id in orphaned_sessions:
                     try:
                         self.ragflow_client.delete_session(
@@ -293,36 +293,36 @@ class RAGFlowSessionManager:
                             session_id=orphaned_session_id
                         )
                         ragflow_deleted_count += 1
-                        logger.info(f"[RAGFlow] 删除孤立会话: {orphaned_session_id[:8]}")
+                        logger.info(f"[RAGFlow] Deleted orphaned session: {orphaned_session_id[:8]}")
                     except Exception as e:
-                        logger.warning(f"[RAGFlow] 删除孤立会话失败 {orphaned_session_id[:8]}: {e}")
+                        logger.warning(f"[RAGFlow] Failed to delete orphaned session {orphaned_session_id[:8]}: {e}")
             
-            # === 总结 ===
+            # === Summary ===
             total_cleaned = db_invalid_count + ragflow_deleted_count
             if total_cleaned > 0:
-                logger.info(f"[RAGFlow] 清理完成，共清理 {total_cleaned} 个会话 (数据库无效映射:{db_invalid_count}, RAGFlow孤立会话:{ragflow_deleted_count})")
+                logger.info(f"[RAGFlow] Cleanup completed, cleaned {total_cleaned} sessions (invalid database mappings:{db_invalid_count}, RAGFlow orphaned sessions:{ragflow_deleted_count})")
             else:
-                logger.info(f"[RAGFlow] 所有会话都有效，无需清理 (数据库:{len(db_ragflow_session_ids)}, RAGFlow:{len(ragflow_session_ids)})")
+                logger.info(f"[RAGFlow] All sessions are valid, no cleanup needed (database:{len(db_ragflow_session_ids)}, RAGFlow:{len(ragflow_session_ids)})")
                 
         except Exception as e:
-            logger.warning(f"[RAGFlow] 清理无效会话失败: {e}")
+            logger.warning(f"[RAGFlow] Failed to clean up invalid sessions: {e}")
     
     def _get_all_ragflow_sessions(self) -> Optional[Dict[str, dict]]:
         """
-        获取RAGFlow中所有的sessions
+        Get all sessions from RAGFlow
         
         Returns:
-            {session_id: session_data} 的字典，失败时返回None
+            {session_id: session_data} dictionary, returns None on failure
         """
         try:
-            # 调用RAGFlow API获取sessions
-            # 注意：RAGFlow的list_sessions API需要chat_id
+            # Call RAGFlow API to get sessions
+            # Note: RAGFlow's list_sessions API requires chat_id
             response = self.ragflow_client.list_sessions(chat_id=DEFAULT_CHAT_ID)
             
             if not response:
                 return {}
             
-            # 构建session_id到session_data的映射
+            # Build mapping from session_id to session_data
             session_dict = {}
             for session in response:
                 session_id = session.get('id')
@@ -332,9 +332,9 @@ class RAGFlowSessionManager:
             return session_dict
             
         except Exception as e:
-            logger.error(f"[RAGFlow] 获取RAGFlow会话列表失败: {e}")
+            logger.error(f"[RAGFlow] Failed to get RAGFlow session list: {e}")
             return None
 
 
-# 全局RAGFlow会话管理器实例
+# Global RAGFlow session manager instance
 ragflow_session_manager = RAGFlowSessionManager()

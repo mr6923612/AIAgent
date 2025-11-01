@@ -1,6 +1,6 @@
 """
-RAGFlow API客户端
-用于与RAGFlow服务进行交互，包括创建会话和对话功能
+RAGFlow API Client
+For interacting with RAGFlow service, including session creation and conversation functions
 """
 
 import requests
@@ -10,7 +10,7 @@ import time
 import logging
 from typing import Dict, Any, Optional, Generator
 
-# 导入配置
+# Import configuration
 try:
     from ..config import config
     DEFAULT_CHAT_ID = config.RAGFLOW_CHAT_ID
@@ -25,49 +25,49 @@ logger = logging.getLogger(__name__)
 
 
 class RAGFlowClient:
-    """RAGFlow API客户端"""
+    """RAGFlow API Client"""
     
     def __init__(self, base_url: str = None, api_key: str = None):
         """
-        初始化RAGFlow客户端
+        Initialize RAGFlow client
         
         Args:
-            base_url: RAGFlow服务的基础URL，默认从配置获取
-            api_key: API密钥，默认从配置获取
+            base_url: RAGFlow service base URL, defaults to config value
+            api_key: API key, defaults to config value
         """
-        # 优先使用环境变量，然后是参数，最后是默认值
+        # Priority: environment variables, then parameters, finally default values
         self.base_url = base_url or os.getenv('RAGFLOW_BASE_URL') or DEFAULT_BASE_URL
         self.api_key = api_key or os.getenv('RAGFLOW_API_KEY') or DEFAULT_API_KEY
         
         if not self.api_key:
             raise ValueError("RAGFlow API key is required. Set RAGFLOW_API_KEY environment variable.")
         
-        # 确保base_url不以斜杠结尾
+        # Ensure base_url doesn't end with slash
         self.base_url = self.base_url.rstrip('/')
         
-        # 设置默认请求头
+        # Set default request headers
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {self.api_key}'
         }
         
-        logger.info(f"RAGFlow客户端初始化完成: {self.base_url}")
+        logger.info(f"RAGFlow client initialized: {self.base_url}")
     
     def _make_request(self, method: str, url: str, data: dict = None, max_retries: int = 3) -> Dict[str, Any]:
         """
-        通用API请求方法
+        Generic API request method
         
         Args:
-            method: HTTP方法
-            url: 请求URL
-            data: 请求数据
-            max_retries: 最大重试次数
+            method: HTTP method
+            url: Request URL
+            data: Request data
+            max_retries: Maximum retry count
             
         Returns:
-            API响应数据
+            API response data
             
         Raises:
-            requests.RequestException: 请求失败时抛出异常
+            requests.RequestException: Raises exception when request fails
         """
         for attempt in range(max_retries):
             try:
@@ -78,7 +78,7 @@ class RAGFlowClient:
                 elif method.upper() == 'DELETE':
                     response = requests.delete(url, headers=self.headers, json=data, timeout=30)
                 else:
-                    raise ValueError(f"不支持的HTTP方法: {method}")
+                    raise ValueError(f"Unsupported HTTP method: {method}")
                 
                 response.raise_for_status()
                 result = response.json()
@@ -90,27 +90,27 @@ class RAGFlowClient:
                 
             except requests.RequestException as e:
                 if attempt < max_retries - 1:
-                    logger.warning(f"API请求失败，第{attempt + 1}次重试: {str(e)}")
-                    time.sleep(2 ** attempt)  # 指数退避
+                    logger.warning(f"API request failed, retry {attempt + 1}: {str(e)}")
+                    time.sleep(2 ** attempt)  # Exponential backoff
                     continue
                 else:
-                    raise Exception(f"API请求失败，已重试{max_retries}次: {str(e)}")
+                    raise Exception(f"API request failed after {max_retries} retries: {str(e)}")
     
     def create_session(self, chat_id: str, name: str, user_id: str = None, max_retries: int = 3) -> Dict[str, Any]:
         """
-        创建会话
+        Create session
         
         Args:
-            chat_id: 聊天助手的ID
-            name: 会话名称
-            user_id: 可选的用户定义ID
-            max_retries: 最大重试次数
+            chat_id: Chat assistant ID
+            name: Session name
+            user_id: Optional user-defined ID
+            max_retries: Maximum retry count
             
         Returns:
-            包含会话信息的字典
+            Dictionary containing session information
             
         Raises:
-            requests.RequestException: 请求失败时抛出异常
+            requests.RequestException: Raises exception when request fails
         """
         url = f"{self.base_url}/api/v1/chats/{chat_id}/sessions"
         
@@ -118,32 +118,32 @@ class RAGFlowClient:
         if user_id:
             data["user_id"] = user_id
         
-        logger.info(f"创建RAGFlow会话: {name}")
+        logger.info(f"Creating RAGFlow session: {name}")
         return self._make_request('POST', url, data, max_retries)
     
     def converse(self, chat_id: str, question: str, stream: bool = True, 
                  session_id: str = None, user_id: str = None) -> Dict[str, Any]:
         """
-        与聊天助手对话（非流式）
+        Converse with chat assistant (non-streaming)
         
         Args:
-            chat_id: 聊天助手的ID
-            question: 问题
-            stream: 是否使用流式输出，默认为True但此方法返回完整响应
-            session_id: 会话ID，如果不提供将创建新会话
-            user_id: 可选的用户定义ID
+            chat_id: Chat assistant ID
+            question: Question
+            stream: Whether to use streaming output, default is True but this method returns complete response
+            session_id: Session ID, will create new session if not provided
+            user_id: Optional user-defined ID
             
         Returns:
-            包含回答信息的字典
+            Dictionary containing answer information
             
         Raises:
-            requests.RequestException: 请求失败时抛出异常
+            requests.RequestException: Raises exception when request fails
         """
         url = f"{self.base_url}/api/v1/chats/{chat_id}/completions"
         
         data = {
             "question": question,
-            "stream": False  # 非流式模式
+            "stream": False  # Non-streaming mode
         }
         
         if session_id:
@@ -151,25 +151,25 @@ class RAGFlowClient:
         if user_id:
             data["user_id"] = user_id
         
-        logger.info(f"RAGFlow对话请求: {question[:50]}...")
+        logger.info(f"RAGFlow conversation request: {question[:50]}...")
         return self._make_request('POST', url, data)
     
     def converse_stream(self, chat_id: str, question: str, session_id: str = None, 
                        user_id: str = None) -> Generator[Dict[str, Any], None, None]:
         """
-        与聊天助手对话（流式）
+        Converse with chat assistant (streaming)
         
         Args:
-            chat_id: 聊天助手的ID
-            question: 问题
-            session_id: 会话ID，如果不提供将创建新会话
-            user_id: 可选的用户定义ID
+            chat_id: Chat assistant ID
+            question: Question
+            session_id: Session ID, will create new session if not provided
+            user_id: Optional user-defined ID
             
         Yields:
-            流式响应数据块
+            Streaming response data chunks
             
         Raises:
-            requests.RequestException: 请求失败时抛出异常
+            requests.RequestException: Raises exception when request fails
         """
         url = f"{self.base_url}/api/v1/chats/{chat_id}/completions"
         
@@ -191,7 +191,7 @@ class RAGFlowClient:
                 if line:
                     line_str = line.decode('utf-8')
                     
-                    # 跳过SSE格式的data:前缀
+                    # Skip SSE format data: prefix
                     if line_str.startswith('data:'):
                         line_str = line_str[5:].strip()
                     
@@ -205,7 +205,7 @@ class RAGFlowClient:
                             yield data_chunk.get('data', {})
                             
                         except json.JSONDecodeError:
-                            # 跳过无效的JSON行
+                            # Skip invalid JSON lines
                             continue
             
         except requests.RequestException as e:
@@ -213,17 +213,17 @@ class RAGFlowClient:
     
     def get_session_info(self, chat_id: str, session_id: str) -> Dict[str, Any]:
         """
-        获取会话信息（如果RAGFlow提供此API）
+        Get session information (if RAGFlow provides this API)
         
         Args:
-            chat_id: 聊天助手的ID
-            session_id: 会话ID
+            chat_id: Chat assistant ID
+            session_id: Session ID
             
         Returns:
-            会话信息字典
+            Session information dictionary
         """
-        # 注意：此方法假设RAGFlow提供获取会话信息的API
-        # 如果实际API不同，需要相应调整
+        # Note: This method assumes RAGFlow provides an API to get session information
+        # If the actual API differs, adjust accordingly
         url = f"{self.base_url}/api/v1/chats/{chat_id}/sessions/{session_id}"
         
         try:
@@ -242,50 +242,50 @@ class RAGFlowClient:
     
     def delete_sessions(self, chat_id: str, session_ids: list, max_retries: int = 3) -> Dict[str, Any]:
         """
-        删除RAGFlow会话
+        Delete RAGFlow sessions
         
         Args:
-            chat_id: 聊天助手的ID
-            session_ids: 要删除的会话ID列表
-            max_retries: 最大重试次数
+            chat_id: Chat assistant ID
+            session_ids: List of session IDs to delete
+            max_retries: Maximum retry count
             
         Returns:
-            删除结果字典
+            Deletion result dictionary
             
         Raises:
-            requests.RequestException: 请求失败时抛出异常
+            requests.RequestException: Raises exception when request fails
         """
         url = f"{self.base_url}/api/v1/chats/{chat_id}/sessions"
         data = {"ids": session_ids}
         
-        logger.info(f"删除RAGFlow会话: {session_ids}")
+        logger.info(f"Deleting RAGFlow sessions: {session_ids}")
         return self._make_request('DELETE', url, data, max_retries)
     
     def delete_session(self, chat_id: str, session_id: str, max_retries: int = 3) -> Dict[str, Any]:
         """
-        删除单个RAGFlow会话
+        Delete a single RAGFlow session
         
         Args:
-            chat_id: 聊天助手的ID
-            session_id: 要删除的会话ID
-            max_retries: 最大重试次数
+            chat_id: Chat assistant ID
+            session_id: Session ID to delete
+            max_retries: Maximum retry count
             
         Returns:
-            删除结果字典
+            Deletion result dictionary
         """
         return self.delete_sessions(chat_id, [session_id], max_retries)
     
     def list_sessions(self, chat_id: str, page: int = 1, page_size: int = 1000) -> list:
         """
-        获取指定chat的所有sessions
+        Get all sessions for specified chat
         
         Args:
-            chat_id: 聊天助手的ID
-            page: 页码，从1开始
-            page_size: 每页数量，默认1000（获取所有）
+            chat_id: Chat assistant ID
+            page: Page number, starting from 1
+            page_size: Number per page, default 1000 (get all)
             
         Returns:
-            会话列表（list）或空列表
+            Session list or empty list
         """
         url = f"{self.base_url}/api/v1/chats/{chat_id}/sessions"
         params = {
@@ -300,7 +300,7 @@ class RAGFlowClient:
             
             if result.get('code') == 0:
                 data = result.get('data', [])
-                # RAGFlow API可能返回list或dict，统一处理
+                # RAGFlow API may return list or dict, handle uniformly
                 if isinstance(data, list):
                     return data
                 elif isinstance(data, dict):
@@ -308,25 +308,25 @@ class RAGFlowClient:
                 else:
                     return []
             else:
-                logger.error(f"获取会话列表失败: {result.get('message')}")
+                logger.error(f"Failed to get session list: {result.get('message')}")
                 return []
         
         except requests.exceptions.RequestException as e:
-            logger.error(f"获取会话列表请求失败: {e}")
+            logger.error(f"Failed to request session list: {e}")
             return []
     
     def list_chats(self, page: int = 1, page_size: int = 30, orderby: str = "create_time", desc: bool = True):
         """
-        获取对话助手列表
+        Get chat assistant list
         
         Args:
-            page: 页码，从1开始
-            page_size: 每页数量
-            orderby: 排序字段
-            desc: 是否降序
+            page: Page number, starting from 1
+            page_size: Number per page
+            orderby: Sort field
+            desc: Whether descending order
             
         Returns:
-            对话助手列表（list）或空列表
+            Chat assistant list or empty list
         """
         url = f"{self.base_url}/api/v1/chats"
         params = {
@@ -343,7 +343,7 @@ class RAGFlowClient:
             
             if result.get('code') == 0:
                 data = result.get('data', [])
-                # RAGFlow API可能返回list或dict，统一处理
+                # RAGFlow API may return list or dict, handle uniformly
                 if isinstance(data, list):
                     return data
                 elif isinstance(data, dict):
@@ -351,56 +351,56 @@ class RAGFlowClient:
                 else:
                     return []
             else:
-                logger.error(f"获取对话助手列表失败: {result.get('message')}")
+                logger.error(f"Failed to get chat assistant list: {result.get('message')}")
                 return []
         
         except requests.exceptions.RequestException as e:
-            logger.error(f"获取对话助手列表请求失败: {e}")
+            logger.error(f"Failed to request chat assistant list: {e}")
             return []
 
 
-# 便捷函数
+# Convenience function
 def create_ragflow_client(base_url: str = None, api_key: str = None) -> RAGFlowClient:
     """
-    创建RAGFlow客户端的便捷函数
+    Convenience function to create RAGFlow client
     
     Args:
-        base_url: RAGFlow服务的基础URL
-        api_key: API密钥
+        base_url: RAGFlow service base URL
+        api_key: API key
         
     Returns:
-        RAGFlowClient实例
+        RAGFlowClient instance
     """
     return RAGFlowClient(base_url, api_key)
 
 
-# 示例使用
+# Example usage
 if __name__ == "__main__":
-    # 设置环境变量示例
+    # Set environment variable example
     # os.environ['RAGFLOW_BASE_URL'] = 'http://localhost:9380'
     # os.environ['RAGFLOW_API_KEY'] = 'your_api_key_here'
     
     try:
-        # 创建客户端
+        # Create client
         client = create_ragflow_client()
         
-        # 示例：创建会话
+        # Example: Create session
         chat_id = DEFAULT_CHAT_ID
-        session_data = client.create_session(chat_id, "测试会话", "user123")
-        print("创建会话成功:", session_data)
+        session_data = client.create_session(chat_id, "Test Session", "user123")
+        print("Session created successfully:", session_data)
         
-        # 示例：非流式对话
-        answer = client.converse(chat_id, "你好，你是谁？", session_id=session_data.get('id'))
-        print("对话回答:", answer)
+        # Example: Non-streaming conversation
+        answer = client.converse(chat_id, "Hello, who are you?", session_id=session_data.get('id'))
+        print("Conversation answer:", answer)
         
-        # 示例：流式对话
-        print("流式对话:")
-        for chunk in client.converse_stream(chat_id, "请介绍一下你的功能", session_id=session_data.get('id')):
+        # Example: Streaming conversation
+        print("Streaming conversation:")
+        for chunk in client.converse_stream(chat_id, "Please introduce your features", session_id=session_data.get('id')):
             if isinstance(chunk, dict) and 'answer' in chunk:
                 print(chunk['answer'], end='', flush=True)
             elif chunk is True:
-                print("\n[对话结束]")
+                print("\n[Conversation ended]")
                 break
         
     except Exception as e:
-        print(f"错误: {e}")
+        print(f"Error: {e}")

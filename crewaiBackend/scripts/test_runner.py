@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-测试运行器 - 提供多种测试选项
+Test Runner - Provides multiple test options
 """
 import os
 import sys
@@ -8,23 +8,23 @@ import subprocess
 import time
 from pathlib import Path
 
-# 修复Windows编码问题
+# Fix Windows encoding issues
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-# 添加项目根目录到Python路径
+# Add project root directory to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 class TestRunner:
-    """测试运行器类"""
+    """Test Runner Class"""
     
     def __init__(self):
         self.project_root = project_root.parent
         self.test_dir = project_root / "tests"
     
     def run_quick_tests(self):
-        """运行快速测试（单元测试）"""
+        """Run quick tests (unit tests only)"""
         print("Running quick tests (unit tests only)...")
         cmd = [
             "python", "-m", "pytest",
@@ -36,7 +36,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_integration_tests(self):
-        """运行集成测试"""
+        """Run integration tests"""
         print("Running integration tests...")
         cmd = [
             "python", "-m", "pytest",
@@ -47,7 +47,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_api_tests(self):
-        """运行API测试"""
+        """Run API tests"""
         print("Running API tests...")
         cmd = [
             "python", "-m", "pytest",
@@ -58,7 +58,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_database_tests(self):
-        """运行数据库测试"""
+        """Run database tests"""
         print("Running database tests...")
         cmd = [
             "python", "-m", "pytest",
@@ -69,7 +69,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_external_tests(self):
-        """运行外部服务测试"""
+        """Run external service tests"""
         print("Running external service tests...")
         cmd = [
             "python", "-m", "pytest",
@@ -80,7 +80,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_all_tests(self):
-        """运行所有测试"""
+        """Run all tests"""
         print("Running all tests...")
         cmd = [
             "python", "-m", "pytest",
@@ -96,7 +96,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_smoke_tests(self):
-        """运行冒烟测试"""
+        """Run smoke tests"""
         print("Running smoke tests...")
         cmd = [
             "python", "-m", "pytest",
@@ -108,7 +108,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def run_parallel_tests(self):
-        """并行运行测试"""
+        """Run tests in parallel"""
         print("Running tests in parallel...")
         cmd = [
             "python", "-m", "pytest",
@@ -120,7 +120,7 @@ class TestRunner:
         return self._run_command(cmd)
     
     def _run_command(self, cmd):
-        """运行命令"""
+        """Run command"""
         os.chdir(self.project_root)
         print(f"Running: {' '.join(cmd)}")
         print("-" * 50)
@@ -138,7 +138,7 @@ class TestRunner:
             return False
     
     def show_test_summary(self):
-        """显示测试摘要"""
+        """Show test summary"""
         print("\n" + "="*60)
         print("AI Agent Test Suite")
         print("="*60)
@@ -154,7 +154,7 @@ class TestRunner:
         print("="*60)
 
 def main():
-    """主函数"""
+    """Main function"""
     runner = TestRunner()
     
     if len(sys.argv) < 2:

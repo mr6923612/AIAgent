@@ -1,9 +1,9 @@
 """
-基于Flask的客服机器人API后端服务
-主要功能：
-1. 接收客户请求（文本+图片）
-2. 异步处理请求
-3. 返回处理结果
+Flask-based customer service bot API backend service
+Main functions:
+1. Receive customer requests (text + images)
+2. Process requests asynchronously
+3. Return processing results
 """
 
 import os
@@ -18,11 +18,11 @@ from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 import base64
 
-# 强制设置标准输出为无缓冲模式，确保Docker日志能立即显示
+# Force set standard output to unbuffered mode to ensure Docker logs display immediately
 sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
-# 配置日志 - 简化版本，确保控制台输出
+# Configure logging - simplified version, ensure console output
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -30,23 +30,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 确保print也能正常输出
+# Ensure print can output normally
 sys.stdout.reconfigure(encoding='utf-8')
 
-logger.info("=== AI Agent 后端服务启动 ===")
-logger.info(f"Python版本: {sys.version}")
-logger.info(f"当前工作目录: {os.getcwd()}")
+logger.info("=== AI Agent Backend Service Started ===")
+logger.info(f"Python version: {sys.version}")
+logger.info(f"Current working directory: {os.getcwd()}")
 logger.info("=" * 40)
 
-# 导入配置文件
+# Import configuration file
 try:
     from config import config
-    logger.info("成功加载配置文件")
+    logger.info("Configuration file loaded successfully")
     LLM_TYPE = config.LLM_TYPE
     PORT = config.PORT
 except ImportError:
-    logger.warning("未找到config.py文件，请复制config.py.template为config.py并配置API密钥")
-    # 使用默认值
+    logger.warning("Config.py file not found, please copy config.py.template to config.py and configure API keys")
+    # Use default values
     os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
     os.environ["RAGFLOW_BASE_URL"] = os.getenv("RAGFLOW_BASE_URL", "http://localhost:80")
     os.environ["RAGFLOW_API_KEY"] = os.getenv("RAGFLOW_API_KEY", "")
@@ -64,41 +64,41 @@ from .utils.sessionManager import SessionManager
 from .utils.session_agent_manager import session_agent_manager
 
 
-# 创建Flask应用实例
+# Create Flask application instance
 app = Flask(__name__)
-# 启用CORS，处理跨域资源共享以便任何来源的请求可以访问以/api/开头的接口
+# Enable CORS to handle cross-origin resource sharing so requests from any origin can access /api/* endpoints
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# 初始化会话管理器
+# Initialize session manager
 session_manager = SessionManager()
 
-# 启动定时清理任务
+# Start periodic cleanup task
 import threading
 import time
 
 def periodic_cleanup():
-    """定期清理非活跃会话"""
+    """Periodically clean up inactive sessions"""
     while True:
         try:
-            time.sleep(300)  # 每5分钟清理一次
-            session_agent_manager.cleanup_inactive_sessions(max_age_seconds=1800)  # 30分钟超时
-            print(f"[清理] 会话清理完成，当前状态: {session_agent_manager.get_session_status()}")
+            time.sleep(300)  # Clean up every 5 minutes
+            session_agent_manager.cleanup_inactive_sessions(max_age_seconds=1800)  # 30 minute timeout
+            print(f"[Cleanup] Session cleanup completed, current status: {session_agent_manager.get_session_status()}")
         except Exception as e:
-            print(f"[清理] 会话清理失败: {e}")
+            print(f"[Cleanup] Session cleanup failed: {e}")
 
-# 启动后台清理线程
+# Start background cleanup thread
 cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
 cleanup_thread.start()
 
 
 def handle_api_error(error_msg: str, status_code: int = 500):
-    """统一处理API错误"""
+    """Unified API error handling"""
     logger.error(error_msg)
     return jsonify({"error": error_msg}), status_code
 
 
 def process_file_upload(request):
-    """处理文件上传请求"""
+    """Handle file upload request"""
     customer_input = request.form.get('customer_input', '')
     input_type = request.form.get('input_type', 'text')
     additional_context = request.form.get('additional_context', '')
@@ -109,17 +109,17 @@ def process_file_upload(request):
     image_data = None
     audio_data = None
     
-    # 处理图片文件
+    # Handle image files
     if 'image' in request.files:
         image_file = request.files['image']
         if image_file and image_file.filename:
             image_data = base64.b64encode(image_file.read()).decode('utf-8')
             input_type = 'text+image' if customer_input.strip() else 'image'
-            customer_input = f"{customer_input} [上传了图片]"
+            customer_input = f"{customer_input} [Uploaded image]"
     
-    # 处理音频文件（已移除语音转文字功能）
+    # Handle audio files (speech-to-text feature removed)
     if 'audio' in request.files:
-        raise ValueError("语音转文字功能已移除，请直接输入文字")
+        raise ValueError("Speech-to-text feature has been removed, please input text directly")
     
     return {
         "customer_input": customer_input,
@@ -134,7 +134,7 @@ def process_file_upload(request):
 
 
 def process_json_request(request):
-    """处理JSON请求"""
+    """Handle JSON request"""
     data = request.json
     if not data or 'customer_input' not in data:
         abort(400, description="Invalid input data provided. Required: customer_input")
@@ -152,36 +152,36 @@ def process_json_request(request):
 
 
 def kickoff_crew(job_id, inputs):
-    """异步执行客服机器人分析"""
+    """Execute customer service bot analysis asynchronously"""
     session_id = inputs.get('session_id', 'unknown')
-    session_prefix = f"[会话:{session_id[:8]}]" if session_id != 'unknown' else "[会话:unknown]"
+    session_prefix = f"[Session:{session_id[:8]}]" if session_id != 'unknown' else "[Session:unknown]"
     
-    logger.info(f"{session_prefix} 开始处理任务 {job_id}")
+    logger.info(f"{session_prefix} Starting to process task {job_id}")
     
     try:
-        # 验证输入数据
+        # Validate input data
         if not inputs.get("customer_input", "").strip():
-            raise ValueError("客户输入不能为空")
+            raise ValueError("Customer input cannot be empty")
         
-        # 使用会话Agent管理器（复用Agent）
+        # Use session Agent manager (reuse Agent)
         session_agent = session_agent_manager.get_or_create_agent(session_id)
         
-        # 执行分析
+        # Execute analysis
         results = session_agent.kickoff(inputs)
-        logger.info(f"{session_prefix} 任务 {job_id} 分析完成")
+        logger.info(f"{session_prefix} Task {job_id} analysis completed")
         
-        # 更新任务状态为完成
+        # Update task status to complete
         with jobs_lock:
             jobs[job_id].status = 'COMPLETE'
             jobs[job_id].result = results
             jobs[job_id].events.append(
-                Event(timestamp=datetime.now(), data="客服机器人分析完成"))
+                Event(timestamp=datetime.now(), data="Customer service bot analysis completed"))
                 
     except Exception as e:
-        error_msg = f"{session_prefix} 任务 {job_id} 分析错误: {e}"
+        error_msg = f"{session_prefix} Task {job_id} analysis error: {e}"
         print(error_msg)
         
-        append_event(job_id, f"客服机器人分析过程中出现错误: {e}")
+        append_event(job_id, f"Error occurred during customer service bot analysis: {e}")
         with jobs_lock:
             jobs[job_id].status = 'ERROR'
             jobs[job_id].result = str(e)
@@ -189,46 +189,46 @@ def kickoff_crew(job_id, inputs):
 
 @app.route('/api/crew', methods=['POST'])
 def run_crew():
-    """处理客服机器人请求"""
+    """Handle customer service bot request"""
     try:
-        # 处理不同类型的请求
+        # Handle different types of requests
         if request.files:
             inputs = process_file_upload(request)
         else:
             inputs = process_json_request(request)
         
         session_id = inputs.get('session_id')
-        session_prefix = f"[会话:{session_id[:8]}]" if session_id else "[会话:unknown]"
+        session_prefix = f"[Session:{session_id[:8]}]" if session_id else "[Session:unknown]"
         
-        print(f"{session_prefix} 收到客服机器人请求")
+        print(f"{session_prefix} Received customer service bot request")
         
-        # 创建任务并异步执行
+        # Create task and execute asynchronously
         job_id = str(uuid4())
-        append_event(job_id, "客服机器人开始分析客户需求...")
+        append_event(job_id, "Customer service bot starting to analyze customer needs...")
         
         thread = Thread(target=kickoff_crew, args=(job_id, inputs))
         thread.start()
         
-        logger.info(f"{session_prefix} 任务 {job_id} 已启动异步处理")
+        logger.info(f"{session_prefix} Task {job_id} started asynchronous processing")
         return jsonify({"job_id": job_id}), 202
         
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return handle_api_error(f"处理请求失败: {str(e)}", 500)
+        return handle_api_error(f"Failed to process request: {str(e)}", 500)
 
 
 
 
 @app.route('/api/crew/<job_id>', methods=['GET'])
 def get_status(job_id):
-    """获取任务状态"""
+    """Get task status"""
     with jobs_lock:
         job = jobs.get(job_id)
         if job is None:
             abort(404, description="Job not found")
     
-    # 尝试解析结果为JSON，失败则保持字符串
+    # Try to parse result as JSON, keep as string if parsing fails
     try:
         result_json = json.loads(str(job.result))
     except json.JSONDecodeError:
@@ -244,39 +244,39 @@ def get_status(job_id):
 
 @app.route('/api/sessions/status', methods=['GET'])
 def get_sessions_status():
-    """获取所有会话状态"""
+    """Get all session status"""
     try:
         status = session_agent_manager.get_session_status()
         return jsonify(status), 200
     except Exception as e:
-        return handle_api_error(f"获取会话状态失败: {str(e)}", 500)
+        return handle_api_error(f"Failed to get session status: {str(e)}", 500)
 
 @app.route('/api/sessions/cleanup', methods=['POST'])
 def cleanup_sessions():
-    """清理非活跃会话"""
+    """Clean up inactive sessions"""
     try:
         data = request.json or {}
-        max_age = data.get('max_age_seconds', 1800)  # 默认30分钟
+        max_age = data.get('max_age_seconds', 1800)  # Default 30 minutes
         
         session_agent_manager.cleanup_inactive_sessions(max_age)
         status = session_agent_manager.get_session_status()
         
         return jsonify({
-            "message": f"清理完成，最大非活跃时间: {max_age}秒",
+            "message": f"Cleanup completed, maximum inactive time: {max_age} seconds",
             "status": status
         }), 200
     except Exception as e:
-        return handle_api_error(f"清理会话失败: {str(e)}", 500)
+        return handle_api_error(f"Failed to clean up sessions: {str(e)}", 500)
 
 @app.route('/api/sessions', methods=['POST'])
 def create_session():
-    """创建新的聊天会话"""
+    """Create new chat session"""
     try:
         data = request.json or {}
         user_id = data.get('user_id', 'anonymous')
         title = data.get('title')
         
-        # 创建会话（只创建数据库记录，RAGFlow会话在第一次对话时创建）
+        # Create session (only create database record, RAGFlow session created on first conversation)
         session = session_manager.create_session(
             user_id=user_id, 
             title=title
@@ -286,16 +286,16 @@ def create_session():
             "session_id": session.session_id,
             "title": session.title,
             "created_at": session.created_at.isoformat(),
-            "ragflow_session_id": None  # RAGFlow会话在第一次对话时创建
+            "ragflow_session_id": None  # RAGFlow session created on first conversation
         }), 201
         
     except Exception as e:
-        return handle_api_error(f"创建会话失败: {str(e)}", 500)
+        return handle_api_error(f"Failed to create session: {str(e)}", 500)
 
 
 @app.route('/api/sessions/<session_id>', methods=['GET'])
 def get_session(session_id):
-    """获取会话详情"""
+    """Get session details"""
     session = session_manager.get_session(session_id)
     if not session:
         abort(404, description="Session not found")
@@ -305,7 +305,7 @@ def get_session(session_id):
 
 @app.route('/api/sessions/<session_id>/messages', methods=['POST'])
 def add_message(session_id):
-    """添加消息到会话"""
+    """Add message to session"""
     data = request.json
     if not data or 'role' not in data or 'content' not in data:
         abort(400, description="Missing role or content")
@@ -319,7 +319,7 @@ def add_message(session_id):
 
 @app.route('/api/sessions/<session_id>', methods=['PUT'])
 def update_session(session_id):
-    """更新会话标题"""
+    """Update session title"""
     data = request.json
     if not data or 'title' not in data:
         abort(400, description="Missing title")
@@ -330,12 +330,12 @@ def update_session(session_id):
 
 @app.route('/api/sessions/<session_id>', methods=['DELETE'])
 def delete_session(session_id):
-    """删除会话"""
+    """Delete session"""
     try:
-        # 1. 先释放会话Agent（会自动删除对应的RAGFlow会话）
+        # 1. First release session Agent (will automatically delete corresponding RAGFlow session)
         session_agent_manager.release_agent(session_id)
         
-        # 2. 删除数据库中的会话记录
+        # 2. Delete session record in database
         success = session_manager.delete_session(session_id)
         if not success:
             return handle_api_error("Session not found", 404)
@@ -343,21 +343,21 @@ def delete_session(session_id):
         return jsonify({"message": "Session deleted successfully"})
         
     except Exception as e:
-        return handle_api_error(f"删除会话失败: {str(e)}", 500)
+        return handle_api_error(f"Failed to delete session: {str(e)}", 500)
 
 
 @app.route('/api/users/<user_id>/sessions', methods=['GET'])
 def get_user_sessions(user_id):
-    """获取用户的所有会话"""
+    """Get all sessions for a user"""
     sessions = session_manager.get_user_sessions(user_id)
     return jsonify([session.to_dict() for session in sessions])
 
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """健康检查端点"""
+    """Health check endpoint"""
     try:
-        # 检查数据库连接
+        # Check database connection
         from utils.database import db_manager
         db_status = db_manager._check_connection()
         
@@ -377,7 +377,7 @@ def health_check():
 
 
 if __name__ == '__main__':
-    logger.info(f"在端口 {PORT} 上启动服务器")
+    logger.info(f"Starting server on port {PORT}")
     debug_mode = config.FLASK_DEBUG == "True" or config.FLASK_DEBUG is True
-    logger.info(f"Debug模式: {debug_mode}")
+    logger.info(f"Debug mode: {debug_mode}")
     app.run(debug=debug_mode, port=PORT, host='0.0.0.0')

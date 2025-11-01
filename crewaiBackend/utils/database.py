@@ -1,6 +1,6 @@
 """
-MySQL数据库连接和操作
-用于管理聊天会话和消息的持久化存储
+MySQL database connection and operations
+For managing persistent storage of chat sessions and messages
 """
 
 import pymysql
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """MySQL数据库管理器"""
+    """MySQL Database Manager"""
     
     def __init__(self):
         self.connection = None
@@ -21,7 +21,7 @@ class DatabaseManager:
         self._create_tables()
     
     def _connect(self):
-        """连接到MySQL数据库"""
+        """Connect to MySQL database"""
         try:
             self.connection = pymysql.connect(
                 host=Config.MYSQL_HOST,
@@ -35,16 +35,16 @@ class DatabaseManager:
                 read_timeout=30,
                 write_timeout=30
             )
-            logger.info("MySQL数据库连接成功")
+            logger.info("MySQL database connection successful")
         except Exception as e:
-            logger.error(f"MySQL数据库连接失败: {e}")
-            logger.warning("系统将使用内存模式运行，会话数据不会持久化")
+            logger.error(f"MySQL database connection failed: {e}")
+            logger.warning("System will run in memory mode, session data will not be persisted")
             self.connection = None
     
     def _check_connection(self):
-        """检查数据库连接是否有效，如果断开则尝试重连"""
+        """Check if database connection is valid, attempt reconnection if disconnected"""
         if not self.connection:
-            logger.info("数据库连接不存在，尝试重新连接...")
+            logger.info("Database connection does not exist, attempting to reconnect...")
             self._connect()
             return self.connection is not None
         
@@ -52,19 +52,19 @@ class DatabaseManager:
             self.connection.ping(reconnect=True)
             return True
         except Exception as e:
-            logger.warning(f"数据库连接检查失败: {e}，尝试重新连接...")
+            logger.warning(f"Database connection check failed: {e}, attempting to reconnect...")
             self._connect()
             return self.connection is not None
     
     def _create_tables(self):
-        """创建数据库表"""
+        """Create database tables"""
         if not self.connection:
-            logger.warning("数据库连接不可用，跳过表创建")
+            logger.warning("Database connection unavailable, skipping table creation")
             return
             
         try:
             with self.connection.cursor() as cursor:
-                # 创建会话表
+                # Create sessions table
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS chat_sessions (
                         session_id VARCHAR(36) PRIMARY KEY,
@@ -80,7 +80,7 @@ class DatabaseManager:
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """)
                 
-                # 创建消息表
+                # Create messages table
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS chat_messages (
                         id VARCHAR(36) PRIMARY KEY,
@@ -94,47 +94,47 @@ class DatabaseManager:
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """)
                 
-                logger.info("数据库表创建成功")
+                logger.info("Database tables created successfully")
         except Exception as e:
-            logger.error(f"创建数据库表失败: {e}")
+            logger.error(f"Failed to create database tables: {e}")
             raise
     
     def execute_query(self, query: str, params: tuple = None) -> Any:
-        """执行SQL查询"""
+        """Execute SQL query"""
         if not self._check_connection():
-            logger.warning("数据库连接不可用，无法执行查询")
+            logger.warning("Database connection unavailable, unable to execute query")
             return []
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(query, params)
                 return cursor.fetchall()
         except Exception as e:
-            logger.error(f"执行查询失败: {e}")
-            # 尝试重连
+            logger.error(f"Query execution failed: {e}")
+            # Attempt reconnection
             self._connect()
             return []
     
     def execute_update(self, query: str, params: tuple = None) -> int:
-        """执行SQL更新操作"""
+        """Execute SQL update operation"""
         if not self._check_connection():
-            logger.warning("数据库连接不可用，无法执行更新")
+            logger.warning("Database connection unavailable, unable to execute update")
             return 0
         try:
             with self.connection.cursor() as cursor:
                 affected_rows = cursor.execute(query, params)
                 return affected_rows
         except Exception as e:
-            logger.error(f"执行更新失败: {e}")
-            # 尝试重连
+            logger.error(f"Update execution failed: {e}")
+            # Attempt reconnection
             self._connect()
             return 0
     
     def close(self):
-        """关闭数据库连接"""
+        """Close database connection"""
         if self.connection:
             self.connection.close()
-            logger.info("MySQL数据库连接已关闭")
+            logger.info("MySQL database connection closed")
 
 
-# 全局数据库管理器实例
+# Global database manager instance
 db_manager = DatabaseManager()

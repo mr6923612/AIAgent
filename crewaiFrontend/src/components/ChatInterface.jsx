@@ -8,7 +8,7 @@ const ChatInterface = ({ user, onLogout }) => {
     {
       id: 1,
       type: 'bot',
-      content: '你好！我是智能客服机器人。请告诉我您需要什么帮助？',
+      content: 'Hello! I am an intelligent customer service bot. How can I help you?',
       timestamp: new Date()
     }
   ])
@@ -31,45 +31,45 @@ const ChatInterface = ({ user, onLogout }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // 会话管理功能
+  // Session management functions
   const createNewSession = async () => {
     try {
       const newSession = await sessionAPI.create(
         user?.id || 'anonymous',
-        `新对话 ${new Date().toLocaleString()}`
+        `New Chat ${new Date().toLocaleString()}`
       )
       
       setCurrentSessionId(newSession.session_id)
       
-      // 重置消息为新对话
+      // Reset messages for new chat
       setMessages([
         {
           id: 1,
           type: 'bot',
-          content: '你好！我是智能客服机器人。请告诉我您需要什么帮助？',
+          content: 'Hello! I am an intelligent customer service bot. How can I help you?',
           timestamp: new Date()
         }
       ])
       
-      // 刷新会话列表，但不自动加载会话
+      // Refresh session list but don't auto-load session
       await refreshSessionsList()
       
       return newSession.session_id
     } catch (error) {
-      const errorMsg = errorHandler.handleAPIError(error, '创建会话')
+      const errorMsg = errorHandler.handleAPIError(error, 'Create session')
       errorHandler.showError(errorMsg)
       return null
     }
   }
 
-  // 仅刷新会话列表，不自动加载
+  // Only refresh session list, don't auto-load
   const refreshSessionsList = async () => {
     try {
       const userId = user?.id || 'anonymous'
       const sessions = await sessionAPI.getUserSessions(userId)
       setSessions(sessions)
     } catch (error) {
-      console.error('刷新会话列表失败:', error)
+      console.error('Failed to refresh session list:', error)
     }
   }
 
@@ -79,17 +79,17 @@ const ChatInterface = ({ user, onLogout }) => {
       const userSessions = await sessionAPI.getUserSessions(userId)
       setSessions(userSessions)
       
-      // 如果没有现有会话且不是跳过自动加载，创建第一个会话
+      // If no existing sessions and not skipping auto-load, create first session
       if (userSessions.length === 0 && !skipAutoLoad) {
         await createNewSession()
       } else if (userSessions.length > 0 && !skipAutoLoad) {
-        // 如果有现有会话，加载最新的会话
-        const latestSession = userSessions[0] // 已经按更新时间排序
+        // If existing sessions, load the latest session
+        const latestSession = userSessions[0] // Already sorted by update time
         await loadSession(latestSession.session_id)
       }
     } catch (error) {
-      console.error('加载会话列表失败:', error)
-      // 如果加载失败，尝试创建新会话
+      console.error('Failed to load session list:', error)
+      // If loading fails, try to create new session
       if (!skipAutoLoad) {
         await createNewSession()
       }
@@ -100,7 +100,7 @@ const ChatInterface = ({ user, onLogout }) => {
     try {
       const session = await sessionAPI.get(sessionId)
       
-      // 转换消息格式
+      // Convert message format
       const formattedMessages = session.messages.map(msg => ({
         id: msg.id,
         type: msg.role === 'user' ? 'user' : 'bot',
@@ -112,10 +112,10 @@ const ChatInterface = ({ user, onLogout }) => {
       setCurrentSessionId(sessionId)
       setShowSessionList(false)
       
-      // 刷新会话列表以更新当前会话状态
+      // Refresh session list to update current session status
       await refreshSessionsList()
     } catch (error) {
-      const errorMsg = errorHandler.handleAPIError(error, '加载会话')
+      const errorMsg = errorHandler.handleAPIError(error, 'Load session')
       errorHandler.showError(errorMsg)
     }
   }
@@ -126,39 +126,39 @@ const ChatInterface = ({ user, onLogout }) => {
     try {
       await sessionAPI.addMessage(currentSessionId, role, content)
     } catch (error) {
-      console.error('保存消息失败:', error)
+      console.error('Failed to save message:', error)
     }
   }
 
   const deleteSession = async (sessionId, event) => {
-    event.stopPropagation() // 阻止触发会话加载
+    event.stopPropagation() // Prevent triggering session load
     
-    if (!window.confirm('确定要删除这个对话吗？删除后将无法恢复。')) {
+    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
       return
     }
     
     try {
       await sessionAPI.delete(sessionId)
       
-      // 如果删除的是当前会话，重置为初始状态
+      // If deleting current session, reset to initial state
       if (sessionId === currentSessionId) {
         setCurrentSessionId(null)
         setMessages([
           {
             id: 1,
             type: 'bot',
-            content: '你好！我是智能客服机器人。请告诉我您需要什么帮助？',
+            content: 'Hello! I am an intelligent customer service bot. How can I help you?',
             timestamp: new Date()
           }
         ])
       }
       
-      // 刷新会话列表
+      // Refresh session list
       await refreshSessionsList()
       
-      console.log('会话删除成功')
+      console.log('Session deleted successfully')
     } catch (error) {
-      const errorMsg = errorHandler.handleAPIError(error, '删除会话')
+      const errorMsg = errorHandler.handleAPIError(error, 'Delete session')
       errorHandler.showError(errorMsg)
     }
   }
@@ -167,7 +167,7 @@ const ChatInterface = ({ user, onLogout }) => {
     scrollToBottom()
   }, [messages])
 
-  // 组件卸载时清理定时器
+  // Clean up timer when component unmounts
   useEffect(() => {
     return () => {
       if (timeoutId) {
@@ -176,15 +176,15 @@ const ChatInterface = ({ user, onLogout }) => {
     }
   }, [timeoutId])
 
-  // 组件初始化时加载会话列表
+  // Load session list when component initializes
   useEffect(() => {
     loadSessions()
   }, [])
 
-  // 检查任务状态
+  // Check task status
   useEffect(() => {
     if (currentJobId && isLoading) {
-      // 设置1分钟超时
+      // Set 1 minute timeout
       const timeout = setTimeout(() => {
         setIsLoading(false)
         setCurrentJobId(null)
@@ -192,11 +192,11 @@ const ChatInterface = ({ user, onLogout }) => {
         const timeoutMessage = {
           id: Date.now(),
           type: 'bot',
-          content: '抱歉，服务器响应超时。请稍后重试或联系人工客服。',
+          content: 'Sorry, server response timed out. Please try again later or contact customer service.',
           timestamp: new Date()
         }
         setMessages(prev => [...prev, timeoutMessage])
-      }, 60000) // 60秒 = 60000毫秒
+      }, 60000) // 60 seconds = 60000 milliseconds
       
       setTimeoutId(timeout)
 
@@ -208,7 +208,7 @@ const ChatInterface = ({ user, onLogout }) => {
           if (status === 'COMPLETE') {
             setIsLoading(false)
             setCurrentJobId(null)
-            clearTimeout(timeout) // 清除超时定时器
+            clearTimeout(timeout) // Clear timeout timer
             
             const botMessage = {
               id: Date.now(),
@@ -219,20 +219,20 @@ const ChatInterface = ({ user, onLogout }) => {
             setMessages(prev => [...prev, botMessage])
             clearInterval(interval)
             
-            // 保存机器人回复到会话
+            // Save bot reply to session
             await saveMessageToSession('assistant', result)
             
-            // 刷新会话列表以更新消息数量
+            // Refresh session list to update message count
             await refreshSessionsList()
           } else if (status === 'ERROR') {
             setIsLoading(false)
             setCurrentJobId(null)
-            clearTimeout(timeout) // 清除超时定时器
+            clearTimeout(timeout) // Clear timeout timer
             
             const errorMessage = {
               id: Date.now(),
               type: 'bot',
-              content: '抱歉，处理您的请求时出现错误。请稍后重试。',
+              content: 'Sorry, an error occurred while processing your request. Please try again later.',
               timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMessage])
@@ -254,14 +254,14 @@ const ChatInterface = ({ user, onLogout }) => {
     e.preventDefault()
     if ((!inputValue.trim() && !uploadedImage && !recordedAudio) || isLoading) return
 
-    // 如果有录音但没有文字输入，使用录音作为输入
-    const finalInputValue = inputValue || (recordedAudio ? '语音消息' : '');
+    // If there's audio recording but no text input, use audio as input
+    const finalInputValue = inputValue || (recordedAudio ? 'Voice message' : '');
 
-    // 添加用户消息
+    // Add user message
     const userMessage = {
       id: Date.now(),
       type: 'user',
-      content: finalInputValue || (uploadedImage ? '上传了图片' : recordedAudio ? '发送了语音' : '发送了消息'),
+      content: finalInputValue || (uploadedImage ? 'Uploaded image' : recordedAudio ? 'Sent voice' : 'Sent message'),
       timestamp: new Date(),
       attachments: {
         image: uploadedImage,
@@ -271,15 +271,15 @@ const ChatInterface = ({ user, onLogout }) => {
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
     
-    // 保存用户消息到会话
+    // Save user message to session
     await saveMessageToSession('user', userMessage.content)
 
     try {
       let response;
       
-      // 检查是否有文件上传
+      // Check if there are file uploads
       if (uploadedImage || recordedAudio) {
-        // 有文件时使用FormData
+        // Use FormData when there are files
         const formData = new FormData()
         formData.append('customer_input', finalInputValue || '')
         
@@ -291,22 +291,22 @@ const ChatInterface = ({ user, onLogout }) => {
         
         formData.append('additional_context', '')
         formData.append('customer_domain', 'example.com')
-        formData.append('project_description', finalInputValue || '多模态输入')
+        formData.append('project_description', finalInputValue || 'Multimodal input')
         formData.append('session_id', currentSessionId || '')
 
-        // 添加图片文件
+        // Add image file
         if (uploadedImage) {
           formData.append('image', uploadedImage.file)
         }
 
-        // 添加录音文件
+        // Add audio file
         if (recordedAudio) {
           formData.append('audio', recordedAudio.blob, 'recording.wav')
         }
 
         response = await crewAPI.sendFileMessage(formData)
       } else {
-        // 处理JSON请求
+        // Handle JSON request
         response = await crewAPI.sendMessage({
           customer_input: finalInputValue,
           input_type: 'text',
@@ -319,7 +319,7 @@ const ChatInterface = ({ user, onLogout }) => {
 
       setCurrentJobId(response.job_id)
       
-      // 清除上传的文件
+      // Clear uploaded files
       setUploadedImage(null)
       setRecordedAudio(null)
       setInputValue('')
@@ -329,7 +329,7 @@ const ChatInterface = ({ user, onLogout }) => {
       const errorMessage = {
         id: Date.now(),
         type: 'bot',
-        content: '抱歉，发送消息时出现错误。请稍后重试。',
+        content: 'Sorry, an error occurred while sending the message. Please try again later.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -391,7 +391,7 @@ const ChatInterface = ({ user, onLogout }) => {
       display: 'flex',
       backgroundColor: '#ffffff'
     }}>
-      {/* 侧边栏 */}
+      {/* Sidebar */}
       <div style={{
         width: '260px',
         backgroundColor: '#f7f7f8',
@@ -399,7 +399,7 @@ const ChatInterface = ({ user, onLogout }) => {
         flexDirection: 'column',
         borderRight: '1px solid #e5e5e5'
       }}>
-        {/* 新对话按钮 */}
+        {/* New chat button */}
         <div style={{ padding: '12px' }}>
           <button 
             className="new-chat-button"
@@ -426,7 +426,7 @@ const ChatInterface = ({ user, onLogout }) => {
           </button>
         </div>
 
-        {/* 会话列表 */}
+        {/* Session list */}
         <div style={{ 
           flex: 1, 
           overflowY: 'auto', 
@@ -486,11 +486,11 @@ const ChatInterface = ({ user, onLogout }) => {
                   color: '#9ca3af',
                   marginTop: '2px'
                 }}>
-                  {session.message_count || 0} 条消息
+                  {session.message_count || 0} messages
                 </div>
               </div>
               
-              {/* 删除按钮 */}
+              {/* Delete button */}
               <button
                 onClick={(e) => deleteSession(session.session_id, e)}
                 style={{
@@ -516,7 +516,7 @@ const ChatInterface = ({ user, onLogout }) => {
                   e.target.style.backgroundColor = 'transparent'
                   e.target.style.opacity = 0.7
                 }}
-                title="删除对话"
+                title="Delete conversation"
               >
                 <Trash2 size={14} />
               </button>
@@ -524,7 +524,7 @@ const ChatInterface = ({ user, onLogout }) => {
           ))}
         </div>
 
-        {/* 用户信息 */}
+        {/* User info */}
         <div style={{
           padding: '12px',
           borderTop: '1px solid #e5e5e5',
@@ -566,14 +566,14 @@ const ChatInterface = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* 主聊天区域 */}
+      {/* Main chat area */}
       <div style={{ 
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#ffffff'
       }}>
-        {/* 消息区域 */}
+        {/* Message area */}
         <div style={{ 
           flex: 1,
           overflowY: 'auto',
@@ -596,7 +596,7 @@ const ChatInterface = ({ user, onLogout }) => {
                 flexDirection: message.type === 'user' ? 'row-reverse' : 'row',
                 padding: '0 20px'
               }}>
-                {/* 头像 */}
+                {/* Avatar */}
                 <div style={{
                   width: '32px',
                   height: '32px',
@@ -613,7 +613,7 @@ const ChatInterface = ({ user, onLogout }) => {
                   {message.type === 'user' ? (user?.username?.charAt(0)?.toUpperCase() || 'U') : 'AI'}
                 </div>
                 
-                {/* 消息内容 */}
+                {/* Message content */}
                 <div style={{
                   backgroundColor: message.type === 'user' ? '#10a37f' : '#f7f7f8',
                   color: message.type === 'user' ? 'white' : '#374151',
@@ -629,7 +629,7 @@ const ChatInterface = ({ user, onLogout }) => {
                     <div style={{ marginTop: '8px' }}>
                       <img 
                         src={message.attachments.image.url} 
-                        alt="上传的图片" 
+                        alt="Uploaded image" 
                         style={{ 
                           maxWidth: '200px', 
                           maxHeight: '200px', 
@@ -689,7 +689,7 @@ const ChatInterface = ({ user, onLogout }) => {
                   gap: '8px'
                 }}>
                   <Loader2 size={16} className="animate-spin" />
-                  正在思考...
+                  Thinking...
                 </div>
               </div>
             </div>
@@ -697,7 +697,7 @@ const ChatInterface = ({ user, onLogout }) => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 输入区域 */}
+        {/* Input area */}
         <div style={{
           padding: '24px',
           backgroundColor: '#ffffff',
@@ -719,7 +719,7 @@ const ChatInterface = ({ user, onLogout }) => {
               border: '1px solid #e5e7eb',
               position: 'relative'
             }}>
-              {/* 输入框 */}
+              {/* Input field */}
               <textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -749,14 +749,14 @@ const ChatInterface = ({ user, onLogout }) => {
                 }}
               />
               
-              {/* 右侧按钮组 */}
+              {/* Right button group */}
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '8px',
                 marginLeft: '8px'
               }}>
-                {/* 图片上传按钮 */}
+                {/* Image upload button */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -786,7 +786,7 @@ const ChatInterface = ({ user, onLogout }) => {
                   <Image size={16} />
                 </button>
                 
-                {/* 语音录制按钮 */}
+                {/* Voice recording button */}
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
@@ -820,7 +820,7 @@ const ChatInterface = ({ user, onLogout }) => {
                   {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
                 
-                {/* 发送按钮 */}
+                {/* Send button */}
                 <button
                   type="submit"
                   disabled={(!inputValue.trim() && !uploadedImage && !recordedAudio) || isLoading}
@@ -855,7 +855,7 @@ const ChatInterface = ({ user, onLogout }) => {
               </div>
             </form>
           
-          {/* 文件预览 */}
+          {/* File preview */}
           {(uploadedImage || recordedAudio) && (
             <div style={{
               display: 'flex',
@@ -898,7 +898,7 @@ const ChatInterface = ({ user, onLogout }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Mic size={16} color="#6b7280" />
                   <span style={{ color: '#374151', fontSize: '14px' }}>
-                    录音文件
+                    Audio file
                   </span>
                   <button
                     onClick={() => setRecordedAudio(null)}
@@ -924,7 +924,7 @@ const ChatInterface = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* 隐藏的文件输入 */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"

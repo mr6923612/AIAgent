@@ -1,28 +1,28 @@
 #!/bin/bash
-# 停止所有服务脚本
+# Stop All Services Script
 
-# 颜色定义
+# Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${BLUE}停止所有服务${NC}"
+echo -e "${BLUE}Stopping All Services${NC}"
 echo "========================================"
 
-# 停止AI Agent和Ollama服务
-echo -e "${BLUE}停止AI Agent和Ollama服务...${NC}"
+# Stop AI Agent and Ollama services
+echo -e "${BLUE}Stopping AI Agent and Ollama services...${NC}"
 docker-compose down
 docker-compose --profile aiagent down
-echo -e "${GREEN}AI Agent服务已停止${NC}"
+echo -e "${GREEN}AI Agent services stopped${NC}"
 
-# 停止RAGFlow服务
-echo -e "${BLUE}停止RAGFlow服务...${NC}"
+# Stop RAGFlow service
+echo -e "${BLUE}Stopping RAGFlow service...${NC}"
 cd ragflow/docker
 docker-compose down
 cd ../..
-echo -e "${GREEN}RAGFlow服务已停止${NC}"
+echo -e "${GREEN}RAGFlow service stopped${NC}"
 
 echo ""
-echo -e "${GREEN}所有服务已停止${NC}"
+echo -e "${GREEN}All services stopped${NC}"

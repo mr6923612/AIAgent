@@ -1,6 +1,6 @@
 """
-API连通性测试
-测试前后端API的基本连通性和响应
+API Connectivity Tests
+Test basic connectivity and responses of frontend and backend APIs
 """
 import pytest
 from unittest.mock import patch, Mock
@@ -8,47 +8,47 @@ from crewaiBackend.main import app
 
 
 class TestAPIConnectivity:
-    """API连通性测试类"""
+    """API connectivity test class"""
     
     @pytest.fixture
     def client(self):
-        """Flask测试客户端"""
+        """Flask test client"""
         app.config['TESTING'] = True
         with app.test_client() as client:
             yield client
     
     def test_health_endpoint_exists(self, client):
-        """测试健康检查端点存在"""
+        """Test health check endpoint exists"""
         response = client.get('/health')
-        # 健康检查端点存在，但可能返回不健康状态
+        # Health check endpoint exists, but may return unhealthy status
         assert response.status_code in [200, 503]
         assert response.json is not None
     
     def test_health_endpoint_response_format(self, client):
-        """测试健康检查响应格式"""
+        """Test health check response format"""
         response = client.get('/health')
         data = response.json
         assert 'status' in data
         assert 'timestamp' in data
-        # 状态可能是healthy或unhealthy
+        # Status may be healthy or unhealthy
         assert data['status'] in ['healthy', 'unhealthy']
     
     def test_sessions_status_endpoint(self, client):
-        """测试会话状态端点"""
+        """Test session status endpoint"""
         response = client.get('/api/sessions/status')
         assert response.status_code == 200
         assert response.json is not None
     
     def test_sessions_status_response_format(self, client):
-        """测试会话状态响应格式"""
+        """Test session status response format"""
         response = client.get('/api/sessions/status')
         data = response.json
         assert 'total_sessions' in data
-        # 检查响应包含必要的字段
+        # Check response contains necessary fields
         assert isinstance(data['total_sessions'], int)
     
     def test_api_routes_registered(self):
-        """测试API路由已注册"""
+        """Test API routes are registered"""
         routes = [rule.rule for rule in app.url_map.iter_rules()]
         assert '/health' in routes
         assert '/api/sessions/status' in routes
@@ -56,26 +56,26 @@ class TestAPIConnectivity:
         assert '/api/crew' in routes
     
     def test_flask_app_configuration(self):
-        """测试Flask应用配置"""
+        """Test Flask application configuration"""
         assert app is not None
         assert app.name == 'crewaiBackend.main'
         assert hasattr(app, 'config')
     
     def test_cors_enabled(self):
-        """测试CORS已启用"""
-        # 检查CORS扩展是否存在
+        """Test CORS is enabled"""
+        # Check if CORS extension exists
         assert hasattr(app, 'extensions')
     
     def test_api_endpoints_accessible(self, client):
-        """测试API端点可访问性"""
-        # 测试健康检查端点
+        """Test API endpoint accessibility"""
+        # Test health check endpoint
         response = client.get('/health')
         assert response.status_code in [200, 503]
         
-        # 测试会话状态端点
+        # Test session status endpoint
         response = client.get('/api/sessions/status')
         assert response.status_code == 200
         
-        # 测试会话列表端点
+        # Test session list endpoint
         response = client.get('/api/users/test_user/sessions')
         assert response.status_code == 200

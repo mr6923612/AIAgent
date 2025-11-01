@@ -1,4 +1,4 @@
-/* ChatGPT风格的聊天界面样式 */
+/* ChatGPT-style chat interface styles */
 * {
   box-sizing: border-box;
 }
@@ -15,7 +15,7 @@ body {
   color: #374151;
 }
 
-/* 滚动条样式 */
+/* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -33,7 +33,7 @@ body {
   background: #6b7280;
 }
 
-/* 动画效果 */
+/* Animation effects */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -47,17 +47,17 @@ body {
   animation: spin 1s linear infinite;
 }
 
-/* 按钮悬停效果 */
+/* Button hover effects */
 button:hover {
   transition: all 0.2s ease-in-out;
 }
 
-/* 输入框焦点效果 */
+/* Input field focus effects */
 textarea:focus {
   outline: none;
 }
 
-/* 消息气泡动画 */
+/* Message bubble animation */
 .message-bubble {
   animation: fadeInUp 0.3s ease-out;
 }
@@ -73,7 +73,7 @@ textarea:focus {
   }
 }
 
-/* 响应式设计 */
+/* Responsive design */
 @media (max-width: 768px) {
   .sidebar {
     width: 100% !important;
@@ -86,7 +86,7 @@ textarea:focus {
   }
 }
 
-/* ChatGPT风格样式 */
+/* ChatGPT-style styles */
 .chat-interface {
   height: 100vh;
   display: flex;
@@ -94,7 +94,7 @@ textarea:focus {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
-/* 侧边栏样式 */
+/* Sidebar styles */
 .sidebar {
   width: 260px;
   background-color: #f7f7f8;
@@ -103,7 +103,7 @@ textarea:focus {
   border-right: 1px solid #e5e5e5;
 }
 
-/* 新对话按钮 */
+/* New chat button */
 .new-chat-button {
   width: 100%;
   padding: 12px;
@@ -125,7 +125,7 @@ textarea:focus {
   background-color: #f3f4f6;
 }
 
-/* 会话列表 */
+/* Session list */
 .session-list {
   flex: 1;
   overflow-y: auto;
@@ -135,7 +135,7 @@ textarea:focus {
   gap: 4px;
 }
 
-/* 当前会话窗口 */
+/* Current session window */
 .current-session-window {
   padding: 12px;
   border-radius: 8px;
@@ -190,7 +190,7 @@ textarea:focus {
   background-color: #f3f4f6;
 }
 
-/* 用户信息区域 */
+/* User info area */
 .user-info {
   padding: 12px;
   border-top: 1px solid #e5e5e5;
@@ -233,7 +233,7 @@ textarea:focus {
   color: #374151;
 }
 
-/* 主聊天区域 */
+/* Main chat area */
 .main-chat {
   flex: 1;
   display: flex;
@@ -241,7 +241,7 @@ textarea:focus {
   background-color: #ffffff;
 }
 
-/* 消息区域 */
+/* Message area */
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -316,7 +316,7 @@ textarea:focus {
   color: #374151;
 }
 
-/* 加载状态 */
+/* Loading state */
 .loading-message {
   display: flex;
   justify-content: flex-start;
@@ -342,7 +342,7 @@ textarea:focus {
   gap: 8px;
 }
 
-/* 输入区域 */
+/* Input area */
 .input-container {
   padding: 24px;
   background-color: #ffffff;
@@ -443,7 +443,7 @@ textarea:focus {
   transform: none;
 }
 
-/* 文件预览 */
+/* File preview */
 .file-preview {
   display: flex;
   align-items: center;
@@ -483,12 +483,12 @@ textarea:focus {
   background-color: #fef2f2;
 }
 
-/* 隐藏的文件输入 */
+/* Hidden file input */
 .hidden-file-input {
   display: none;
 }
 
-/* 多模态输入样式 */
+/* Multimodal input styles */
 .input-button.recording {
   background: #ef4444;
   color: white;

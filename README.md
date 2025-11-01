@@ -3,221 +3,221 @@
 [![CI/CD Pipeline](https://github.com/mr6923612/AIAgent/workflows/AI%20Agent%20CI/CD%20Pipeline/badge.svg)](https://github.com/mr6923612/AIAgent/actions)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Enabled-brightgreen)](https://github.com/mr6923612/AIAgent/actions)
 
-基于 CrewAI 的智能 AI 代理系统，集成 RAGFlow 知识检索，支持本地 Docker 一键部署。
+Intelligent AI agent system based on CrewAI, integrated with RAGFlow knowledge retrieval, supporting one-click local Docker deployment.
 
-## ✨ 核心特性
+## ✨ Core Features
 
-### 🤖 智能对话
-- 基于 Google AI (Gemini) 的智能对话
-- 自然语言理解和生成
-- 多轮对话上下文管理
+### 🤖 Intelligent Conversation
+- Intelligent conversation based on Google AI (Gemini)
+- Natural language understanding and generation
+- Multi-turn conversation context management
 
-### 📚 知识检索 (RAGFlow)
-- 集成 RAGFlow 进行知识检索
-- 向量化文档存储和检索
-- 精准的问答支持
+### 📚 Knowledge Retrieval (RAGFlow)
+- Integrated RAGFlow for knowledge retrieval
+- Vectorized document storage and retrieval
+- Precise Q&A support
 
-### 💾 高可用会话管理
-- ✅ **一对一映射**: 前端 session ↔ RAGFlow session
-- ✅ **自动恢复**: 服务重启后从数据库恢复映射
-- ✅ **智能清理**: 启动时自动清理无效会话
-- ✅ **数据库重连**: 网络故障自动恢复
-- ✅ **三层查找**: 内存 → 数据库 → 创建
+### 💾 High Availability Session Management
+- ✅ **One-to-One Mapping**: Frontend session ↔ RAGFlow session
+- ✅ **Auto Recovery**: Restore mappings from database after service restart
+- ✅ **Smart Cleanup**: Automatically clean invalid sessions on startup
+- ✅ **Database Reconnection**: Auto-recover from network failures
+- ✅ **Three-Tier Lookup**: Memory → Database → Create
 
-### 🛠️ 开发特性
-- 🎨 React 现代化前端界面
-- 🐳 完整的 Docker 容器化
+### 🛠️ Development Features
+- 🎨 Modern React frontend interface
+- 🐳 Complete Docker containerization
 - 🔄 GitHub Actions CI/CD
-- 🎛️ YAML 配置化 Prompt
-- 📊 MySQL 数据持久化
+- 🎛️ YAML-configured Prompts
+- 📊 MySQL data persistence
 
-## 📑 目录
+## 📑 Table of Contents
 
-### 📘 部署与配置
-- [🚀 快速开始](#-快速开始) - 环境要求、部署步骤
-- [🔧 配置说明](#-配置说明) - API 密钥、环境变量
-- [🤖 自定义 Prompt](#-自定义ai-agent-prompt) - Agent 配置指南
-- [🛠️ 故障排除](#️-故障排除) - 常见问题、性能优化
+### 📘 Deployment & Configuration
+- [🚀 Quick Start](#-quick-start) - Environment requirements, deployment steps
+- [🔧 Configuration](#-configuration) - API keys, environment variables
+- [🤖 Custom Prompt](#-custom-ai-agent-prompt) - Agent configuration guide
+- [🛠️ Troubleshooting](#️-troubleshooting) - Common issues, performance optimization
 
-### 📚 技术文档
-- [🌐 服务架构](#-服务架构) - 组件关系、数据流
-- [🏗️ 代码架构](#️-代码架构) - 核心类、设计模式
-- [🆘 获取帮助](#-获取帮助) - 联系方式
+### 📚 Technical Documentation
+- [🌐 Service Architecture](#-service-architecture) - Component relationships, data flow
+- [🏗️ Code Architecture](#️-code-architecture) - Core classes, design patterns
+- [🆘 Get Help](#-get-help) - Contact information
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 📋 环境要求
+### 📋 Environment Requirements
 
 - Docker 20.10+
 - Docker Compose 2.0+
 - Git 2.0+
-- 4GB+ 内存
-- 2GB+ 可用磁盘空间
+- 4GB+ RAM
+- 2GB+ available disk space
 
 ---
 
-### 🎯 部署步骤
+### 🎯 Deployment Steps
 
-#### 步骤 1：克隆项目
+#### Step 1: Clone the Project
 ```bash
 git clone <your-repo-url>
 cd AIAgent
 ```
 
-#### 步骤 2：启动 RAGFlow 服务
+#### Step 2: Start RAGFlow Service
 ```bash
 cd ragflow/docker
 docker-compose up -d
 cd ../..
 ```
 
-等待约 30-60 秒让 RAGFlow 完全启动。
+Wait approximately 30-60 seconds for RAGFlow to fully start.
 
-#### 步骤 3：注册 RAGFlow 并获取 API Key
-1. 访问 http://localhost:80
-2. 首次访问需要注册账号（推荐使用：`rag@flow.io` / `infiniflow1`）
-3. 登录后，进入 **设置 (Settings)** → **API密钥 (API Keys)**
-4. 点击 **创建 API Key**，复制生成的密钥
+#### Step 3: Register RAGFlow and Get API Key
+1. Visit http://localhost:80
+2. First-time access requires account registration (recommended: `rag@flow.io` / `infiniflow1`)
+3. After logging in, go to **Settings** → **API Keys**
+4. Click **Create API Key** and copy the generated key
 
-#### 步骤 4：创建并配置 .env 文件
+#### Step 4: Create and Configure .env File
 ```bash
 cd crewaiBackend
-# 复制模板文件
+# Copy template file
 cp env.template .env
 ```
 
-编辑 `.env` 文件，填入以下 API 密钥：
+Edit the `.env` file and fill in the following API keys:
 ```bash
-# Google AI API Key（从 https://aistudio.google.com/app/apikey 获取）
+# Google AI API Key (obtain from https://aistudio.google.com/app/apikey)
 GOOGLE_API_KEY=your_google_api_key_here
 
-# RAGFlow API Key（从上一步获取）
+# RAGFlow API Key (obtained from previous step)
 RAGFLOW_API_KEY=ragflow-xxxxxxxxxxxxx
 ```
 
-#### 步骤 5：配置 Agent Prompt（可选）
+#### Step 5: Configure Agent Prompt (Optional)
 ```bash
-# 编辑 agent_config.yaml 自定义 AI Agent 的行为和回复风格
+# Edit agent_config.yaml to customize AI Agent behavior and response style
 nano agent_config.yaml
 ```
 
-#### 步骤 6：运行配置脚本
+#### Step 6: Run Configuration Script
 ```bash
-# 自动获取 RAGFlow Chat ID 并更新配置
+# Automatically get RAGFlow Chat ID and update configuration
 python crewaiBackend/scripts/update_agent_prompt.py --yes
 ```
 
-> **💡 说明**：此脚本会自动：
-> - 验证 `.env` 文件配置
-> - 从 RAGFlow 获取 Chat ID 并更新到 `.env`
-> - 根据 `agent_config.yaml` 更新 Agent prompt
+> **💡 Note**: This script will automatically:
+> - Validate `.env` file configuration
+> - Get Chat ID from RAGFlow and update `.env`
+> - Update Agent prompt according to `agent_config.yaml`
 
-#### 步骤 7：启动 AI Agent 服务
+#### Step 7: Start AI Agent Service
 ```bash
-cd ..  # 返回项目根目录
+cd ..  # Return to project root directory
 chmod +x quick-start.sh
 ./quick-start.sh
 ```
 
-> **注意**：`quick-start.sh` 会重启所有服务，包括 RAGFlow
+> **Note**: `quick-start.sh` will restart all services, including RAGFlow
 
-#### 步骤 8：访问应用
-- 🌐 **AI Agent 前端**: http://localhost:3000
-- 🔧 **AI Agent 后端**: http://localhost:8012
-- 📚 **RAGFlow 管理**: http://localhost:80
+#### Step 8: Access Application
+- 🌐 **AI Agent Frontend**: http://localhost:3000
+- 🔧 **AI Agent Backend**: http://localhost:8012
+- 📚 **RAGFlow Admin**: http://localhost:80
 
 ---
 
-### 🛠️ 部署脚本说明
+### 🛠️ Deployment Script Description
 
-| 脚本 | 功能 | 说明 |
-|------|------|------|
-| `quick-start.sh` | 一键部署 | 启动所有服务并自动构建最新镜像 |
-| `stop-all.sh` | 停止服务 | 停止所有运行的服务 |
+| Script | Function | Description |
+|--------|----------|-------------|
+| `quick-start.sh` | One-click deployment | Start all services and automatically build latest images |
+| `stop-all.sh` | Stop services | Stop all running services |
 
-**脚本功能**：
-- ✅ 自动更新 `.env` 文件中的 Docker 环境配置
-- ✅ 自动构建最新代码镜像
-- ✅ 检测 API 密钥配置状态
-- ✅ 执行健康检查并显示服务状态
+**Script Features**:
+- ✅ Automatically update Docker environment configuration in `.env` file
+- ✅ Automatically build latest code images
+- ✅ Detect API key configuration status
+- ✅ Execute health checks and display service status
 
-**常用命令**：
+**Common Commands**:
 ```bash
-./quick-start.sh    # 启动所有服务
-./stop-all.sh       # 停止所有服务
+./quick-start.sh    # Start all services
+./stop-all.sh       # Stop all services
 ```
 ---
 
-## 🔧 配置说明
+## 🔧 Configuration
 
-### ⚙️ 环境配置文件 (.env)
+### ⚙️ Environment Configuration File (.env)
 
-`.env` 文件包含所有服务配置和 API 密钥，**必须正确配置**才能运行系统。
+The `.env` file contains all service configurations and API keys, **must be configured correctly** for the system to run.
 
-#### 📝 关键配置项
+#### 📝 Key Configuration Items
 
-| 配置项 | 说明 | 获取方式 |
-|--------|------|----------|
-| `GOOGLE_API_KEY` | Google AI API 密钥 | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| `RAGFLOW_API_KEY` | RAGFlow API 密钥 | RAGFlow 管理界面 → 设置 → API密钥 |
-| `RAGFLOW_CHAT_ID` | RAGFlow 聊天 ID | 运行 `update_agent_prompt.py` 自动获取 |
-| `RAGFLOW_BASE_URL` | RAGFlow 服务地址 | Docker 环境: `http://ragflow-server:80` |
-| `MYSQL_HOST` | MySQL 主机地址 | Docker 环境: `aiagent-mysql` |
-| `MYSQL_PORT` | MySQL 端口 | `3306` |
-| `MYSQL_DATABASE` | 数据库名称 | `aiagent` |
-| `MYSQL_USER` | 数据库用户名 | `aiagent` |
-| `MYSQL_PASSWORD` | 数据库密码 | `aiagent123` |
+| Configuration Item | Description | How to Obtain |
+|-------------------|-------------|---------------|
+| `GOOGLE_API_KEY` | Google AI API key | [Google AI Studio](https://aistudio.google.com/app/apikey) |
+| `RAGFLOW_API_KEY` | RAGFlow API key | RAGFlow Admin Interface → Settings → API Keys |
+| `RAGFLOW_CHAT_ID` | RAGFlow Chat ID | Run `update_agent_prompt.py` to automatically get |
+| `RAGFLOW_BASE_URL` | RAGFlow service address | Docker environment: `http://ragflow-server:80` |
+| `MYSQL_HOST` | MySQL host address | Docker environment: `aiagent-mysql` |
+| `MYSQL_PORT` | MySQL port | `3306` |
+| `MYSQL_DATABASE` | Database name | `aiagent` |
+| `MYSQL_USER` | Database username | `aiagent` |
+| `MYSQL_PASSWORD` | Database password | `aiagent123` |
 
-#### 🔑 API 密钥获取
+#### 🔑 API Key Acquisition
 
 **Google AI API Key**:
-1. 访问 [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. 登录 Google 账号
-3. 点击 "Create API Key"
-4. 复制生成的 API Key
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Log in with Google account
+3. Click "Create API Key"
+4. Copy the generated API Key
 
 **RAGFlow API Key**:
-1. 访问 http://localhost:80
-2. 登录 RAGFlow 账号
-3. 进入 **设置** → **API密钥**
-4. 点击 **创建 API Key**
-5. 复制生成的密钥
+1. Visit http://localhost:80
+2. Log in to RAGFlow account
+3. Go to **Settings** → **API Keys**
+4. Click **Create API Key**
+5. Copy the generated key
 
 ---
 
-## 🌐 服务架构
+## 🌐 Service Architecture
 
-### 📋 服务概览
+### 📋 Service Overview
 
-| 服务 | 端口 | 功能 | 依赖 |
-|------|------|------|------|
-| **aiagent-frontend** | 3000 | React 前端界面 | aiagent-backend |
-| **aiagent-backend** | 8012 | Flask API 服务 | MySQL, RAGFlow |
-| **aiagent-mysql** | 3306 | MySQL 数据库 | - |
-| **ragflow-server** | 80 | RAGFlow 知识检索 | Ollama, MySQL, Redis |
-| **ollama** | 11434 | LLM 模型服务 | - |
+| Service | Port | Function | Dependencies |
+|---------|------|----------|--------------|
+| **aiagent-frontend** | 3000 | React frontend interface | aiagent-backend |
+| **aiagent-backend** | 8012 | Flask API service | MySQL, RAGFlow |
+| **aiagent-mysql** | 3306 | MySQL database | - |
+| **ragflow-server** | 80 | RAGFlow knowledge retrieval | Ollama, MySQL, Redis |
+| **ollama** | 11434 | LLM model service | - |
 
-### 🗄️ 数据库和存储服务
+### 🗄️ Database and Storage Services
 
-- **MySQL**: 存储聊天会话、消息记录
-- **Redis**: RAGFlow 缓存服务
-- **Elasticsearch**: RAGFlow 文档索引
-- **MinIO**: RAGFlow 文件存储
+- **MySQL**: Store chat sessions, message records
+- **Redis**: RAGFlow cache service
+- **Elasticsearch**: RAGFlow document indexing
+- **MinIO**: RAGFlow file storage
 
-### 🔌 API接口
+### 🔌 API Interfaces
 
-**AI Agent 后端 API**:
-- `GET /api/health` - 健康检查
-- `POST /api/crew/{session_id}` - 创建 AI 任务
-- `GET /api/crew/{session_id}` - 获取任务状态
+**AI Agent Backend API**:
+- `GET /api/health` - Health check
+- `POST /api/crew/{session_id}` - Create AI task
+- `GET /api/crew/{session_id}` - Get task status
 
 **RAGFlow API**:
-- `POST /api/v1/chats/{chat_id}/sessions` - 创建会话
-- `POST /api/v1/chats/{chat_id}/sessions/{session_id}/completions` - 发送消息
+- `POST /api/v1/chats/{chat_id}/sessions` - Create session
+- `POST /api/v1/chats/{chat_id}/sessions/{session_id}/completions` - Send message
 
-### 📊 服务依赖关系
+### 📊 Service Dependencies
 
 ```
 aiagent-frontend → aiagent-backend → aiagent-mysql
@@ -227,78 +227,78 @@ aiagent-frontend → aiagent-backend → aiagent-mysql
               MySQL + Redis + Elasticsearch + MinIO
 ```
 
-### 🧹 清理RAGFlow会话
+### 🧹 RAGFlow Session Cleanup
 
-系统启动时会自动清理无效的 RAGFlow 会话：
+The system automatically cleans invalid RAGFlow sessions on startup:
 
-1. **数据库 → RAGFlow**: 清除数据库中不存在的 RAGFlow 会话 ID
-2. **RAGFlow → 数据库**: 删除没有对应数据库记录的 RAGFlow 会话
+1. **Database → RAGFlow**: Clear RAGFlow session IDs that don't exist in database
+2. **RAGFlow → Database**: Delete RAGFlow sessions without corresponding database records
 
 ---
 
-## 📊 项目结构
+## 📊 Project Structure
 
 ```
 AIAgent/
-├── crewaiBackend/           # 后端服务
-│   ├── main.py             # Flask 应用入口
-│   ├── crew.py             # CrewAI Agent 定义
-│   ├── config.py           # 配置管理
-│   ├── agent_config.yaml   # Agent 配置文件
-│   ├── .env                # 环境变量（需要创建）
-│   ├── env.template        # 环境变量模板
-│   ├── requirements.txt    # Python 依赖
-│   ├── utils/              # 工具模块
-│   │   ├── database.py     # 数据库操作
-│   │   ├── ragflow_client.py # RAGFlow API 客户端
-│   │   ├── sessionManager.py # 会话管理
-│   │   ├── ragflow_session_manager.py # RAGFlow 会话管理
-│   │   ├── session_agent_manager.py # 会话 Agent 管理
-│   │   ├── jobManager.py  # 任务管理
-│   │   ├── myLLM.py       # LLM 配置
-│   │   └── speech_to_text.py # 语音转文字
-│   ├── scripts/            # 脚本工具
-│   │   └── update_agent_prompt.py # 更新 Agent 配置
-│   └── tests/              # 测试文件
-├── crewaiFrontend/         # 前端服务
-│   ├── src/               # React 源码
-│   ├── package.json       # Node.js 依赖
-│   └── Dockerfile         # 前端 Docker 配置
-├── ragflow/               # RAGFlow 服务
-│   ├── docker/           # RAGFlow Docker 配置
-│   └── docker-compose.yml # RAGFlow 服务配置
-├── data/                  # 数据存储目录
-│   ├── aiagent/mysql/    # AI Agent 数据库文件
-│   ├── ragflow/          # RAGFlow 数据文件
-│   └── ollama/models/    # Ollama 模型文件
-├── docker-compose.yml     # 主 Docker Compose 配置
-├── quick-start.sh         # 一键启动脚本
-├── stop-all.sh           # 停止所有服务脚本
-├── Makefile              # 构建和测试命令
-└── README.md             # 项目文档
+├── crewaiBackend/           # Backend service
+│   ├── main.py             # Flask application entry
+│   ├── crew.py             # CrewAI Agent definition
+│   ├── config.py           # Configuration management
+│   ├── agent_config.yaml   # Agent configuration file
+│   ├── .env                # Environment variables (needs to be created)
+│   ├── env.template        # Environment variable template
+│   ├── requirements.txt    # Python dependencies
+│   ├── utils/              # Utility modules
+│   │   ├── database.py     # Database operations
+│   │   ├── ragflow_client.py # RAGFlow API client
+│   │   ├── sessionManager.py # Session management
+│   │   ├── ragflow_session_manager.py # RAGFlow session management
+│   │   ├── session_agent_manager.py # Session Agent management
+│   │   ├── jobManager.py  # Task management
+│   │   ├── myLLM.py       # LLM configuration
+│   │   └── speech_to_text.py # Speech to text
+│   ├── scripts/            # Script tools
+│   │   └── update_agent_prompt.py # Update Agent configuration
+│   └── tests/              # Test files
+├── crewaiFrontend/         # Frontend service
+│   ├── src/               # React source code
+│   ├── package.json       # Node.js dependencies
+│   └── Dockerfile         # Frontend Docker configuration
+├── ragflow/               # RAGFlow service
+│   ├── docker/           # RAGFlow Docker configuration
+│   └── docker-compose.yml # RAGFlow service configuration
+├── data/                  # Data storage directory
+│   ├── aiagent/mysql/    # AI Agent database files
+│   ├── ragflow/          # RAGFlow data files
+│   └── ollama/models/    # Ollama model files
+├── docker-compose.yml     # Main Docker Compose configuration
+├── quick-start.sh         # One-click startup script
+├── stop-all.sh           # Stop all services script
+├── Makefile              # Build and test commands
+└── README.md             # Project documentation
 ```
 
 ---
 
-## 🏗️ 代码架构
+## 🏗️ Code Architecture
 
-### 核心类与数据结构
+### Core Classes and Data Structures
 
-#### 1. 会话管理架构
+#### 1. Session Management Architecture
 
-**RAGFlowSessionManager (单例模式)**
+**RAGFlowSessionManager (Singleton Pattern)**
 ```python
 class RAGFlowSessionManager:
     def __init__(self):
-        self.session_mapping = {}  # 内存映射: app_session_id -> ragflow_session_id
+        self.session_mapping = {}  # Memory mapping: app_session_id -> ragflow_session_id
         self.db_manager = DatabaseManager()
         self.ragflow_client = RAGFlowClient()
     
     def get_or_create_session(self, app_session_id: str) -> str:
-        # 三层查找: 内存 -> 数据库 -> 创建新会话
-        # 1. 检查内存映射
-        # 2. 查询数据库
-        # 3. 创建新 RAGFlow 会话
+        # Three-tier lookup: memory -> database -> create new session
+        # 1. Check memory mapping
+        # 2. Query database
+        # 3. Create new RAGFlow session
 ```
 
 **SessionAgentManager**
@@ -308,11 +308,11 @@ class SessionAgentManager:
         self.session_agents = {}  # session_id -> SessionAgent
     
     def get_or_create_agent(self, session_id: str) -> SessionAgent:
-        # 获取或创建会话 Agent
-        # 传递 ragflow_session_id 到 CrewAI
+        # Get or create session Agent
+        # Pass ragflow_session_id to CrewAI
 ```
 
-#### 2. 数据库架构
+#### 2. Database Architecture
 
 **DatabaseManager**
 ```python
@@ -322,13 +322,13 @@ class DatabaseManager:
         self._connect()
     
     def _check_connection(self):
-        # 自动重连机制
-        # 网络故障后自动恢复连接
+        # Auto-reconnect mechanism
+        # Auto-recover connection after network failure
 ```
 
-**数据表结构**
+**Database Table Structure**
 ```sql
--- 聊天会话表
+-- Chat session table
 CREATE TABLE chat_sessions (
     id VARCHAR(36) PRIMARY KEY,
     ragflow_session_id VARCHAR(255),
@@ -336,7 +336,7 @@ CREATE TABLE chat_sessions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- 聊天消息表
+-- Chat message table
 CREATE TABLE chat_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
     session_id VARCHAR(36),
@@ -347,7 +347,7 @@ CREATE TABLE chat_messages (
 );
 ```
 
-#### 3. CrewAI 集成架构
+#### 3. CrewAI Integration Architecture
 
 **CrewtestprojectCrew**
 ```python
@@ -357,145 +357,143 @@ class CrewtestprojectCrew:
         self.session_manager = SessionManager()
     
     def create_tasks(self, inputs: dict) -> List[Task]:
-        # 优先使用传入的 ragflow_session_id
-        # 如果没有，则查询数据库
+        # Prefer to use passed ragflow_session_id
+        # If not available, query database
         ragflow_session_id = inputs.get('ragflow_session_id')
         if not ragflow_session_id:
             ragflow_session_id = self.session_manager.get_ragflow_session_id(inputs['session_id'])
         
-        # 创建 RAGFlow 任务
+        # Create RAGFlow task
         return [Task(description=..., inputs={'ragflow_session_id': ragflow_session_id})]
 ```
 
-### 数据流程
+### Data Flow
 
-#### 1. 用户消息处理流程
+#### 1. User Message Processing Flow
 
 ```
-用户发送消息
+User sends message
     ↓
-前端 → aiagent-backend API
+Frontend → aiagent-backend API
     ↓
 SessionAgentManager.get_or_create_agent()
     ↓
 RAGFlowSessionManager.get_or_create_session()
     ↓
-CrewAI Agent 执行任务
+CrewAI Agent executes task
     ↓
-调用 RAGFlow API
+Call RAGFlow API
     ↓
-返回 AI 回复
+Return AI reply
     ↓
-前端显示回复
+Frontend displays reply
 ```
 
-#### 2. 会话恢复流程
+#### 2. Session Recovery Flow
 
 ```
-服务重启
+Service restart
     ↓
-RAGFlowSessionManager 初始化
+RAGFlowSessionManager initialization
     ↓
 _cleanup_invalid_sessions()
     ↓
-数据库 → RAGFlow 清理
+Database → RAGFlow cleanup
     ↓
-RAGFlow → 数据库清理
+RAGFlow → Database cleanup
     ↓
-加载有效会话到内存
+Load valid sessions to memory
     ↓
-服务就绪
+Service ready
 ```
 
-#### 3. 三层查找机制
+#### 3. Three-Tier Lookup Mechanism
 
 ```
 get_or_create_session(app_session_id)
     ↓
-1. 检查内存映射 session_mapping[app_session_id]
-    ↓ (如果找到)
-    返回 ragflow_session_id
-    ↓ (如果未找到)
-2. 查询数据库 SELECT ragflow_session_id FROM chat_sessions WHERE id = app_session_id
-    ↓ (如果找到)
-    加载到内存映射，返回 ragflow_session_id
-    ↓ (如果未找到)
-3. 创建新 RAGFlow 会话
+1. Check memory mapping session_mapping[app_session_id]
+    ↓ (if found)
+    Return ragflow_session_id
+    ↓ (if not found)
+2. Query database SELECT ragflow_session_id FROM chat_sessions WHERE id = app_session_id
+    ↓ (if found)
+    Load to memory mapping, return ragflow_session_id
+    ↓ (if not found)
+3. Create new RAGFlow session
     ↓
-    保存到数据库和内存映射
+    Save to database and memory mapping
     ↓
-    返回新的 ragflow_session_id
+    Return new ragflow_session_id
 ```
 
-### 架构层级
+### Architecture Layers
 
-#### 1. 表现层 (Presentation Layer)
-- **React 前端**: 用户界面和交互
-- **Flask API**: RESTful API 接口
+#### 1. Presentation Layer
+- **React Frontend**: User interface and interactions
+- **Flask API**: RESTful API interfaces
 
-#### 2. 业务逻辑层 (Business Logic Layer)
-- **SessionAgentManager**: 会话 Agent 管理
-- **RAGFlowSessionManager**: RAGFlow 会话管理
-- **CrewAI Agents**: AI 任务执行
+#### 2. Business Logic Layer
+- **SessionAgentManager**: Session Agent management
+- **RAGFlowSessionManager**: RAGFlow session management
+- **CrewAI Agents**: AI task execution
 
-#### 3. 数据访问层 (Data Access Layer)
-- **DatabaseManager**: MySQL 数据库操作
-- **RAGFlowClient**: RAGFlow API 客户端
-- **SessionManager**: 会话数据管理
+#### 3. Data Access Layer
+- **DatabaseManager**: MySQL database operations
+- **RAGFlowClient**: RAGFlow API client
+- **SessionManager**: Session data management
 
-#### 4. 基础设施层 (Infrastructure Layer)
-- **Docker 容器**: 服务容器化
-- **MySQL**: 数据持久化
-- **RAGFlow**: 知识检索服务
-- **Ollama**: LLM 模型服务
+#### 4. Infrastructure Layer
+- **Docker Containers**: Service containerization
+- **MySQL**: Data persistence
+- **RAGFlow**: Knowledge retrieval service
+- **Ollama**: LLM model service
 
-### 模块职责划分
+### Module Responsibilities
 
-#### 1. 核心模块
-- **main.py**: Flask 应用入口，API 路由
-- **crew.py**: CrewAI Agent 定义和任务创建
-- **config.py**: 配置管理和环境变量加载
+#### 1. Core Modules
+- **main.py**: Flask application entry, API routes
+- **crew.py**: CrewAI Agent definition and task creation
+- **config.py**: Configuration management and environment variable loading
 
-#### 2. 工具模块
-- **database.py**: 数据库连接和操作
-- **ragflow_client.py**: RAGFlow API 交互
-- **sessionManager.py**: 会话数据管理
-- **ragflow_session_manager.py**: RAGFlow 会话映射管理
-- **session_agent_manager.py**: 会话 Agent 生命周期管理
-- **jobManager.py**: 异步任务管理
-- **myLLM.py**: LLM 配置和调用
-- **speech_to_text.py**: 语音转文字功能
+#### 2. Utility Modules
+- **database.py**: Database connection and operations
+- **ragflow_client.py**: RAGFlow API interactions
+- **sessionManager.py**: Session data management
+- **ragflow_session_manager.py**: RAGFlow session mapping management
+- **session_agent_manager.py**: Session Agent lifecycle management
+- **jobManager.py**: Async task management
+- **myLLM.py**: LLM configuration and calling
+- **speech_to_text.py**: Speech to text functionality
 
-#### 3. 配置模块
-- **agent_config.yaml**: Agent 行为配置
-- **.env**: 环境变量配置
-- **docker-compose.yml**: 服务编排配置
+#### 3. Configuration Modules
+- **agent_config.yaml**: Agent behavior configuration
+- **.env**: Environment variable configuration
+- **docker-compose.yml**: Service orchestration configuration
 
+### Design Principles
 
+#### 1. Single Responsibility Principle
+- Each module only responsible for one specific function
+- Database operations, API calls, session management separated
 
-### 设计原则
+#### 2. Dependency Injection
+- Inject dependencies through constructors
+- Easy to test and replace modules
 
-#### 1. 单一职责原则
-- 每个模块只负责一个特定功能
-- 数据库操作、API 调用、会话管理分离
+#### 3. Error Handling
+- Unified exception handling mechanism
+- Auto-retry and recovery mechanisms
 
-#### 2. 依赖注入
-- 通过构造函数注入依赖
-- 便于测试和模块替换
+#### 4. Configuration-Driven
+- Control behavior through configuration files
+- Support environment variable overrides
 
-#### 3. 错误处理
-- 统一的异常处理机制
-- 自动重试和恢复机制
+### Core Optimizations
 
-#### 4. 配置驱动
-- 通过配置文件控制行为
-- 支持环境变量覆盖
-
-### 核心优化
-
-#### 1. 会话管理优化
+#### 1. Session Management Optimization
 ```python
-# 单例模式确保唯一实例
+# Singleton pattern ensures unique instance
 class RAGFlowSessionManager:
     _instance = None
     _initialized = False
@@ -506,47 +504,47 @@ class RAGFlowSessionManager:
         return cls._instance
 ```
 
-#### 2. 三层查找机制
+#### 2. Three-Tier Lookup Mechanism
 ```python
 def get_or_create_session(self, app_session_id: str) -> str:
-    # 1. 内存查找
+    # 1. Memory lookup
     if app_session_id in self.session_mapping:
         return self.session_mapping[app_session_id]
     
-    # 2. 数据库查找
+    # 2. Database lookup
     ragflow_session_id = self.db_manager.get_ragflow_session_id(app_session_id)
     if ragflow_session_id:
         self.session_mapping[app_session_id] = ragflow_session_id
         return ragflow_session_id
     
-    # 3. 创建新会话
+    # 3. Create new session
     return self._create_new_session(app_session_id)
 ```
 
-#### 3. 双向清理机制
+#### 3. Bidirectional Cleanup Mechanism
 ```python
 def _cleanup_invalid_sessions(self):
-    # 数据库 → RAGFlow 清理
+    # Database → RAGFlow cleanup
     self._cleanup_database_to_ragflow()
     
-    # RAGFlow → 数据库清理
+    # RAGFlow → Database cleanup
     self._cleanup_ragflow_to_database()
 ```
 
-#### 4. 自动重连机制
+#### 4. Auto-Reconnect Mechanism
 ```python
 def _check_connection(self):
     try:
         self.connection.ping(reconnect=True)
     except Exception:
-        self._connect()  # 自动重连
+        self._connect()  # Auto-reconnect
 ```
 
-#### 5. 对象复用优化
+#### 5. Object Reuse Optimization
 ```python
 class SessionAgent:
     def __init__(self):
-        self._crew_helper = CrewtestprojectCrew()  # 创建一次，重复使用
+        self._crew_helper = CrewtestprojectCrew()  # Create once, reuse
     
     def _create_agents(self):
         return self._crew_helper.create_agents()
@@ -555,184 +553,184 @@ class SessionAgent:
         return self._crew_helper.create_crew()
 ```
 
-**效果**: ✅ 减少资源消耗，提高性能
+**Effect**: ✅ Reduce resource consumption, improve performance
 
 ---
 
-## 🧪 测试与 CI/CD
+## 🧪 Testing & CI/CD
 
-### 运行测试
+### Run Tests
 ```bash
-# 运行所有测试
+# Run all tests
 make test
 
-# 运行特定测试
+# Run specific tests
 pytest tests/unit/
 pytest tests/integration/
 ```
 
-### CI/CD 流程
-- **GitHub Actions**: 自动测试、构建、部署
-- **状态**: [查看流水线](https://github.com/mr6923612/AIAgent/actions)
-- **本地开发**: `make dev` → `make test` → `make deploy`
+### CI/CD Process
+- **GitHub Actions**: Auto testing, building, deployment
+- **Status**: [View Pipeline](https://github.com/mr6923612/AIAgent/actions)
+- **Local Development**: `make dev` → `make test` → `make deploy`
 
-## 📁 数据管理
+## 📁 Data Management
 
-项目使用统一的数据文件夹结构：
+The project uses a unified data folder structure:
 
 ```
 data/
-├── aiagent/mysql/     # AI Agent 数据库
-├── ragflow/          # RAGFlow 服务数据
-└── ollama/models/    # Ollama 模型文件
+├── aiagent/mysql/     # AI Agent database
+├── ragflow/          # RAGFlow service data
+└── ollama/models/    # Ollama model files
 ```
 
-**优势**: 数据隔离、易于备份、支持 Docker 卷挂载
+**Advantages**: Data isolation, easy backup, support Docker volume mounting
 
-## 🛠️ 故障排除
+## 🛠️ Troubleshooting
 
-### 端口冲突
-如果遇到端口冲突，可以修改 `docker-compose.yml` 中的端口映射：
+### Port Conflicts
+If encountering port conflicts, modify port mappings in `docker-compose.yml`:
 
 ```yaml
 services:
   aiagent-frontend:
     ports:
-      - "3001:3000"  # 改为 3001 端口
+      - "3001:3000"  # Change to port 3001
 ```
 
-### 服务无法访问
-1. 检查服务是否正在运行：
+### Services Unreachable
+1. Check if services are running:
    ```bash
    docker-compose --profile aiagent ps
    ```
 
-2. 查看服务日志：
+2. View service logs:
    ```bash
    docker-compose --profile aiagent logs aiagent-backend
    ```
 
-### 数据库连接问题
+### Database Connection Issues
 ```bash
-# 检查 MySQL 服务状态
+# Check MySQL service status
 docker-compose --profile aiagent logs aiagent-mysql
 
-# 重启数据库服务
+# Restart database service
 docker-compose --profile aiagent restart aiagent-mysql
 ```
 
-### 常见问题解决
+### Common Issue Solutions
 
-#### 1. Docker 构建失败
-**问题**: `failed to prepare extraction snapshot: parent snapshot does not exist`
+#### 1. Docker Build Failure
+**Issue**: `failed to prepare extraction snapshot: parent snapshot does not exist`
 
-**解决方案**:
+**Solution**:
 ```bash
-# 清理 Docker 构建缓存
+# Clean Docker build cache
 docker builder prune -af
 docker image prune -af
 
-# 重新构建（不使用缓存）
+# Rebuild (without cache)
 docker-compose --profile aiagent up -d --build --no-cache
 ```
 
-#### 2. RAGFlow API 认证失败
-**问题**: `RAGFlow API error: Authentication error: API key is invalid!`
+#### 2. RAGFlow API Authentication Failed
+**Issue**: `RAGFlow API error: Authentication error: API key is invalid!`
 
-**解决方案**:
-1. 访问 http://localhost:80
-2. 进入 **设置** → **API密钥**
-3. 创建新的 API Key
-4. 更新 `crewaiBackend/.env` 文件中的 `RAGFLOW_API_KEY`
+**Solution**:
+1. Visit http://localhost:80
+2. Go to **Settings** → **API Keys**
+3. Create new API Key
+4. Update `RAGFLOW_API_KEY` in `crewaiBackend/.env` file
 
-#### 3. 会话管理问题
-**问题**: 每次请求都创建新的 RAGFlow 会话
+#### 3. Session Management Issues
+**Issue**: New RAGFlow session created on every request
 
-**解决方案**:
-1. 检查数据库连接是否正常
-2. 确保 `ragflow_session_manager` 正确初始化
-3. 查看后端日志确认会话映射是否正常
+**Solution**:
+1. Check if database connection is normal
+2. Ensure `ragflow_session_manager` is properly initialized
+3. View backend logs to confirm session mapping is normal
 
-#### 4. 服务启动顺序问题
-**解决方案**:
-1. 先启动 RAGFlow: `cd ragflow/docker && docker-compose up -d`
-2. 等待 30-60 秒让 RAGFlow 完全启动
-3. 再启动 AI Agent: `./quick-start.sh`
+#### 4. Service Startup Order Issues
+**Solution**:
+1. Start RAGFlow first: `cd ragflow/docker && docker-compose up -d`
+2. Wait 30-60 seconds for RAGFlow to fully start
+3. Then start AI Agent: `./quick-start.sh`
 
-### 性能优化建议
+### Performance Optimization Recommendations
 
-1. **资源要求**: 至少 4GB 内存、2GB 可用磁盘
-2. **端口管理**: 确保 3000-12000 端口段可用
-3. **网络隔离**: 所有服务在 `aiagent-net` 网络中通信
-4. **防火墙**: 允许必要端口访问
+1. **Resource Requirements**: At least 4GB RAM, 2GB available disk space
+2. **Port Management**: Ensure ports 3000-12000 are available
+3. **Network Isolation**: All services communicate in `aiagent-net` network
+4. **Firewall**: Allow necessary port access
 
-### Ollama 和 RAGFlow 配置
+### Ollama and RAGFlow Configuration
 
-#### 1. Ollama 模型管理
-系统自动下载 **bge-m3** 模型用于文本嵌入。
+#### 1. Ollama Model Management
+The system automatically downloads the **bge-m3** model for text embedding.
 
 ```bash
-# 查看已安装的模型
+# View installed models
 docker exec ollama ollama list
 
-# 手动下载模型（如果需要）
+# Manually download model (if needed)
 docker exec ollama ollama pull bge-m3
 ```
 
-#### 2. RAGFlow 配置 Ollama
-访问 http://localhost:80，进入 **设置** → **模型管理**：
+#### 2. RAGFlow Configure Ollama
+Visit http://localhost:80, go to **Settings** → **Model Management**:
 
-| 配置项 | 值 | 说明 |
-|--------|-----|------|
-| API地址 | `http://ollama:11434` | ⚠️ 必须用容器名而非 localhost |
-| 模型名称 | `bge-m3:latest` | embedding 模型 |
+| Configuration Item | Value | Description |
+|-------------------|-------|-------------|
+| API Address | `http://ollama:11434` | ⚠️ Must use container name instead of localhost |
+| Model Name | `bge-m3:latest` | Embedding model |
 
-**验证连接**:
+**Verify Connection**:
 ```bash
 docker exec ragflow-server curl http://ollama:11434
 ```
 
-**常见问题**:
-- **连接失败**: 确保使用 `http://ollama:11434` 而非 `localhost`
-- **模型不存在**: 运行 `docker exec ollama ollama pull bge-m3`
+**Common Issues**:
+- **Connection Failed**: Ensure using `http://ollama:11434` instead of `localhost`
+- **Model Not Found**: Run `docker exec ollama ollama pull bge-m3`
 
-## 🤖 自定义 AI Agent Prompt
+## 🤖 Custom AI Agent Prompt
 
-### 快速配置
+### Quick Configuration
 
-1. **编辑配置**: 修改 `crewaiBackend/agent_config.yaml`
-2. **应用配置**: 运行 `python crewaiBackend/scripts/update_agent_prompt.py --yes`
-3. **重启服务**: `docker-compose --profile aiagent restart aiagent-backend`
+1. **Edit Configuration**: Modify `crewaiBackend/agent_config.yaml`
+2. **Apply Configuration**: Run `python crewaiBackend/scripts/update_agent_prompt.py --yes`
+3. **Restart Service**: `docker-compose --profile aiagent restart aiagent-backend`
 
-### 配置项说明
+### Configuration Items
 
-| 配置项 | 说明 | 示例 |
-|--------|------|------|
-| `agent_name` | Agent 名称 | "智能客服" |
-| `role` | Agent 角色 | "专业的客服代表" |
-| `goal` | Agent 目标 | "提供准确、友好的客户服务" |
-| `backstory` | Agent 背景 | "我是一名经验丰富的客服专家..." |
-| `verbose` | 详细日志 | `true` / `false` |
-| `max_iter` | 最大迭代次数 | `3` |
-| `max_execution_time` | 最大执行时间(秒) | `300` |
+| Configuration Item | Description | Example |
+|-------------------|-------------|---------|
+| `agent_name` | Agent name | "Intelligent Customer Service" |
+| `role` | Agent role | "Professional customer service representative" |
+| `goal` | Agent goal | "Provide accurate and friendly customer service" |
+| `backstory` | Agent background | "I am an experienced customer service expert..." |
+| `verbose` | Detailed logging | `true` / `false` |
+| `max_iter` | Maximum iterations | `3` |
+| `max_execution_time` | Maximum execution time (seconds) | `300` |
 
-### 故障排除
+### Troubleshooting
 
-**问题**: "API key is invalid"
-- **解决**: 确保 `.env` 文件中的 `RAGFLOW_API_KEY` 正确
+**Issue**: "API key is invalid"
+- **Solution**: Ensure `RAGFLOW_API_KEY` in `.env` file is correct
 
-**问题**: "You do not own the assistant"
-- **解决**: 重新运行配置脚本获取正确的 `CHAT_ID`
+**Issue**: "You do not own the assistant"
+- **Solution**: Re-run configuration script to get correct `CHAT_ID`
 
-**问题**: "Connection refused"
-- **解决**: 确保 RAGFlow 服务正在运行
+**Issue**: "Connection refused"
+- **Solution**: Ensure RAGFlow service is running
 
-## 🆘 获取帮助
+## 🆘 Get Help
 
-- **GitHub Issues**: [提交问题](https://github.com/mr6923612/AIAgent/issues)
-- **文档**: 查看项目文档和配置说明
-- **社区**: 参与讨论和贡献代码
+- **GitHub Issues**: [Submit Issue](https://github.com/mr6923612/AIAgent/issues)
+- **Documentation**: View project documentation and configuration instructions
+- **Community**: Participate in discussions and contribute code
 
 ---
 
-**🎉 感谢使用 AI Agent！**
+**🎉 Thank you for using AI Agent!**
